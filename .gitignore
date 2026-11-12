@@ -1,0 +1,29 @@
+# Game data and anything derived from it: never commit these (they belong to the game's owners)
+*.pak
+*.munged
+*.sprbin
+backup/
+cache/
+build/
+
+# Per-user state and personal paths
+config.json
+installed.json
+originals.json
+projects/
+exports/
+
+# Python / editor / tooling
+__pycache__/
+*.pyc
+.venv/
+venv/
+.claude/
+*.log
+dist/
+.venv-build/
+
+# Internal notes and design-tool files (not part of the release)
+.impeccable/
+DESIGN.md
+PRODUCT.md

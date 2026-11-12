@@ -1,0 +1,3 @@
+[submodule "avatar-legends-tools"]
+	path = avatar-legends-tools
+	url = https://github.com/calebrisc/avatar-legends-tools.git

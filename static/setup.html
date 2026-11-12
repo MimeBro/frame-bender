@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar Legends Skin Editor — setup</title>
+<style>
+  :root { --bg:#16181d; --panel:#1e2128; --panel2:#262a33; --line:#343945; --text:#e6e8ec; --muted:#8b93a3;
+          --accent:#f0a23b; --ok:#5cc98a; --bad:#ef6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI",system-ui,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:28px 20px 60px; }
+  h1 { font-size:20px; margin:0 0 6px; } h2 { font-size:15px; margin:26px 0 8px; }
+  p { margin:8px 0; } .muted { color:var(--muted); } a { color:var(--accent); }
+  code { font-family:Consolas,monospace; background:var(--panel2); padding:1px 5px; border-radius:4px; overflow-wrap:anywhere; }
+  .box { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin:12px 0; }
+  .banner { background:#4a3410; color:#ffd591; border-radius:8px; padding:10px 14px; margin:14px 0; }
+  table { width:100%; border-collapse:collapse; margin:8px 0; }
+  td { padding:5px 8px; border-top:1px solid var(--line); vertical-align:top; }
+  td.st { white-space:nowrap; font-weight:600; width:110px; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--accent); }
+  button { background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:5px; padding:6px 14px;
+           font:inherit; cursor:pointer; margin:4px 8px 4px 0; }
+  button:hover { border-color:var(--accent); } button:disabled { opacity:.5; cursor:default; }
+  button.primary { background:var(--accent); color:#1b1300; border-color:var(--accent); font-weight:600; }
+  #msg { margin:12px 0; min-height:1.4em; overflow-wrap:anywhere; white-space:pre-wrap; }
+  ul { margin:6px 0; padding-left:20px; } li { margin:3px 0; overflow-wrap:anywhere; }
+</style>
+</head>
+<body>
+<main>
+  <h1>One more step before the editor can start</h1>
+  <p class="muted">The editor is built on the modding tools by <a href="https://github.com/calebrisc/avatar-legends-tools" target="_blank" rel="noopener">calebrisc (avatar-legends-tools)</a>.
+     Those tools are not included with this app, and <strong>nothing has been downloaded</strong>. You choose how to get them.</p>
+
+  <div class="banner" id="problem">Checking…</div>
+
+  <h2>Files needed</h2>
+  <table id="files"></table>
+  <p class="muted">Looked for all four in each of these folders:</p>
+  <ul id="looked" class="muted"></ul>
+
+  <div class="box">
+    <h2 style="margin-top:0">Option A — download them for me</h2>
+    <p>Clicking the button downloads exactly these four small files (under 100 KB in total) from
+       <code>raw.githubusercontent.com/calebrisc/avatar-legends-tools</code>, at one fixed version that this editor was tested with.
+       Each file is checked against a checksum built into the editor before it is saved, and a file that does not match is discarded.
+       Files you already have in that folder are not touched. Nothing else is downloaded and nothing about you is sent.</p>
+    <p class="muted">They will be saved in: <code id="dest"></code></p>
+    <p class="muted">Sources:</p>
+    <ul id="sources" class="muted"></ul>
+    <button id="dl" class="primary">Download the 4 files</button>
+  </div>
+
+  <div class="box">
+    <h2 style="margin-top:0">Option B — get them yourself</h2>
+    <ol>
+      <li>Open <a href="https://github.com/calebrisc/avatar-legends-tools" target="_blank" rel="noopener">github.com/calebrisc/avatar-legends-tools</a>
+          and use <em>Code → Download ZIP</em> (or <code>git clone</code> it).</li>
+      <li>Copy the four files listed above into the folder shown under Option A.</li>
+      <li>Click <em>Check again</em>.</li>
+    </ol>
+    <button id="open">Open that folder</button>
+    <button id="again">Check again</button>
+  </div>
+
+  <div id="msg"></div>
+  <button id="go" class="primary" hidden>Continue to the editor</button>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const H = { "X-Skin-Editor": "1", "Content-Type": "application/json" };
+const MEANING = { ok: ["ok", "present, verified"], different: ["warn", "present, different version"], missing: ["bad", "missing"] };
+
+async function call(path, post) {
+  const res = await fetch(path, post ? { method: "POST", headers: H, body: "{}" } : {});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && !data.error) data.error = `Request failed (${res.status})`;
+  return data;
+}
+
+function say(text, cls) { $("msg").textContent = text; $("msg").className = cls || ""; }
+
+async function refresh() {
+  const s = await call("/api/setup-status");
+  $("dest").textContent = s.download_dir;
+  const t = $("files"); t.textContent = "";
+  for (const f of s.files) {
+    const tr = document.createElement("tr");
+    const [cls, label] = MEANING[f.state];
+    tr.innerHTML = "<td><code></code></td><td></td><td class='st'></td>";
+    tr.children[0].firstChild.textContent = f.name;
+    tr.children[1].textContent = f.purpose;
+    tr.children[2].textContent = label; tr.children[2].className = "st " + cls;
+    t.append(tr);
+  }
+  $("looked").textContent = "";
+  for (const p of s.looked_in) { const li = document.createElement("li"); li.textContent = p; $("looked").append(li); }
+  $("sources").textContent = "";
+  for (const f of s.files) { const li = document.createElement("li"); li.textContent = f.url; $("sources").append(li); }
+  const missing = s.files.filter((f) => f.state === "missing").map((f) => f.name);
+  $("problem").textContent = s.ready ? "All the files are in place." :
+    "Missing: " + missing.join(", ") + ". The editor cannot start without them.";
+  $("problem").style.cssText = s.ready ? "background:#123a22;color:#9be8b8" : "";
+  $("go").hidden = !s.ready;
+  return s;
+}
+
+$("dl").onclick = async () => {
+  $("dl").disabled = true; say("Downloading… (4 small files)");
+  const r = await call("/api/setup-download", true);
+  say(r.error ? r.error : `Downloaded and verified ${r.downloaded.length} file(s).` +
+      (r.kept.length ? ` Kept the ${r.kept.length} you already had (not overwritten).` : ""), r.error ? "bad" : "ok");
+  $("dl").disabled = false; await refresh();
+};
+$("open").onclick = async () => { const r = await call("/api/setup-open", true); if (r.error) say(r.error, "bad"); };
+$("again").onclick = async () => {
+  const s = await refresh();
+  say(s.ready ? "Found them." : "Still missing: " + s.files.filter((f) => f.state === "missing").map((f) => f.name).join(", "), s.ready ? "ok" : "bad");
+};
+$("go").onclick = async () => {
+  $("go").disabled = true; say("Starting the editor…");
+  const r = await call("/api/setup-continue", true);
+  if (r.error) { say(r.error, "bad"); $("go").disabled = false; return; }
+  for (let i = 0; i < 40; i++) {                       // wait until the real editor answers
+    await new Promise((ok) => setTimeout(ok, 500));
+    try { if ((await fetch("/api/characters")).ok) { location.href = "/"; return; } } catch (e) { /* still switching */ }
+  }
+  say("The editor did not start. Close this window and start it again.", "bad"); $("go").disabled = false;
+};
+refresh();
+</script>
+</body>
+</html>

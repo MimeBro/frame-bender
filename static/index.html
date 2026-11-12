@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame Bender</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 16 16"><path d="M5 3.5v9l7-4.5z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 16 16"><path d="M4.5 3.5h2.5v9H4.5zM9 3.5h2.5v9H9z" fill="currentColor"/></symbol>
+  <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="12.5" cy="8" r="1.4" fill="currentColor"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.5h4l1.5 1.5H14v6.5H2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.2 10.2L13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 16 16"><path d="M4 8h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M4 8h8M8 4v8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 16 16"><path d="M6 3.5L3 6.5l3 3M3.5 6.5h6a3.5 3.5 0 010 7H7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 16 16"><path d="M10 3.5l3 3-3 3M12.5 6.5h-6a3.5 3.5 0 000 7H9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 16 16"><path d="M11 2l3 3-2.2 2.2-3-3zM9.6 5.4L3.5 11.5 3 13l1.5-.5 6.1-6.1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-ramp" viewBox="0 0 16 16"><rect x="2" y="5" width="4" height="6" fill="currentColor" opacity=".45"/><rect x="6" y="5" width="4" height="6" fill="currentColor" opacity=".75"/><rect x="10" y="5" width="4" height="6" fill="currentColor"/></symbol>
+  <symbol id="i-help" viewBox="0 0 16 16"><path d="M6 6.2a2.1 2.1 0 114 .8c-.5.9-1.9 1.2-1.9 2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8.1" cy="12.2" r=".9" fill="currentColor"/></symbol>
+  <symbol id="i-close" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+
+<header id="topbar">
+  <div class="brand" aria-label="Frame Bender">
+    <span class="mark" aria-hidden="true"><i class="air"></i><i class="water"></i><i class="earth"></i><i class="fire"></i></span>
+    <span class="word">Frame Bender</span>
+  </div>
+  <div class="charpick" id="charPick" hidden>
+    <button id="charBtn" class="tb charbtn" aria-haspopup="listbox" aria-expanded="false">
+      <span id="charName">—</span><svg class="ico"><use href="#i-chev"/></svg></button>
+    <div id="charPop" class="popover" hidden>
+      <label class="search"><svg class="ico"><use href="#i-search"/></svg><input id="charSearch" type="search" placeholder="Find a character" spellcheck="false" aria-label="Find a character"></label>
+      <div id="charList" role="listbox" aria-label="Characters"></div>
+    </div>
+  </div>
+  <div class="group" id="grpProject" hidden>
+    <span class="glabel">Project</span>
+    <button id="editedBtn" class="tb" title="Every frame and colour you changed for this character">Edited files <span id="editedCount" class="count">0</span></button>
+    <button id="folderBtn" class="tb icononly" title="Open the folder with your edited PNGs" aria-label="Open the folder with your edited PNGs"><svg class="ico"><use href="#i-folder"/></svg></button>
+  </div>
+  <div class="group" id="grpShare" hidden>
+    <span class="glabel">Share</span>
+    <button id="importBtn" class="tb" title="Import a skin pack someone shared (a .zip), or drop it on the window">Import</button>
+    <button id="shareBtn" class="tb" title="Pack your edits into a small zip to share">Share</button>
+  </div>
+  <div class="group game" id="grpGame" hidden>
+    <div id="gameStatus" class="status" role="status">
+      <span class="dot" id="statusDot"></span>
+      <span class="lines"><b id="statusMain">—</b><small id="statusSub"></small></span>
+    </div>
+    <div class="menuwrap">
+      <button id="gameMenuBtn" class="tb icononly" aria-haspopup="menu" aria-expanded="false" aria-label="More game actions" title="More game actions"><svg class="ico"><use href="#i-more"/></svg></button>
+      <div id="gameMenu" class="popover menu" role="menu" hidden>
+        <button id="scanBtn" role="menuitem">Scan game folder…<small>Find new characters and game updates (read-only)</small></button>
+        <button id="noticeBtn" role="menuitem" hidden>Show the modding reminder<small>Bring back the reminder shown before Build &amp; install</small></button>
+        <button id="rebuildBtn" role="menuitem">Test rebuild<small>Rebuild with no edits and compare with the original</small></button>
+      </div>
+    </div>
+    <button id="restoreBtn" class="tb">Restore original</button>
+    <button id="installBtn" class="tb danger" title="Build this character's pak with your edits and copy it into the game folder">Build &amp; install</button>
+  </div>
+</header>
+
+<div id="msg" class="strip" role="status" aria-live="polite" hidden><span id="msgText"></span><button id="msgClose" class="stripx" aria-label="Dismiss" title="Dismiss (Esc)"><svg class="ico"><use href="#i-close"/></svg></button></div>
+
+<section id="setup" hidden>
+  <h1>Welcome to Frame Bender</h1>
+  <p>Frame Bender changes how characters look by replacing a character's <code>.pak</code> file in the game's
+     <code>data_packages</code> folder. It always keeps an untouched backup of the original first.</p>
+  <ol>
+    <li>In Steam, verify your game files (right-click the game → Properties → Installed Files → Verify), so the
+        backup is the stock file.</li>
+    <li>Check the folder below is your game's <code>data_packages</code> folder.</li>
+    <li>Click <strong>Save and scan</strong>, then back up the characters you want to edit.</li>
+  </ol>
+  <label class="field">Game data folder <input id="gameDir" type="text" spellcheck="false"></label>
+  <button id="setupBtn" class="tb primary">Save and scan</button>
+  <p class="muted">Reading the game folder changes nothing. Only Build &amp; install and Restore original ever write to it.
+     Modified files have been tested in online matches without issues. As with any mod, the game's developers could change their rules at any time, so use Frame Bender at your own risk.</p>
+</section>
+
+<main id="browser" hidden>
+  <nav id="moves" aria-label="Moves">
+    <label class="search"><svg class="ico"><use href="#i-search"/></svg><input id="filter" type="search" placeholder="Filter moves" aria-label="Filter moves"></label>
+    <button id="editedNav" class="navbtn">Edited files <span id="editedNavCount" class="count">0</span></button>
+    <div id="tree"></div>
+  </nav>
+
+  <section id="work">
+    <p id="empty" class="empty">Pick a move on the left.</p>
+
+    <div id="moveView" hidden>
+      <div id="stagebar">
+        <h1 id="moveTitle"></h1>
+        <label class="ctl">Part <select id="groupSel"></select></label>
+        <label class="ctl">Backdrop <select id="backdropSel"></select></label>
+        <div class="seg" role="group" aria-label="Zoom">
+          <button data-zoom="stage" aria-pressed="false" title="Show the whole stage">Stage</button><button data-zoom="fit" aria-pressed="true" title="Fit the character to the window (0, or double-click the stage)">Fit</button><span class="segline" aria-hidden="true"></span><button id="zoomOut" class="zstep" title="Zoom out (-)" aria-label="Zoom out"><svg class="ico"><use href="#i-minus"/></svg></button><button id="zoomVal" class="zval" title="Zoom level: click for actual size (100%). Scroll on the stage to zoom, drag to move around." aria-label="Zoom level, click for 100%">100%</button><button id="zoomIn" class="zstep" title="Zoom in (=)" aria-label="Zoom in"><svg class="ico"><use href="#i-plus"/></svg></button>
+        </div>
+      </div>
+      <div id="stageArea">
+        <canvas id="canvas" role="img" aria-label="Animation preview"></canvas>
+        <div id="stageNote" class="stagenote"></div>
+        <div id="pickHint" class="stagenote pick" role="status" hidden><i id="pickChip"></i><span id="pickText"></span></div>
+        <div id="results" class="panel" hidden></div>
+      </div>
+      <div id="timeline">
+        <div class="tlbar">
+          <button id="playBtn" class="tb" aria-label="Play"><svg class="ico"><use id="playIcon" href="#i-play"/></svg><span id="playText">Play</span></button>
+          <span id="frameLabel" class="framelabel"></span>
+          <label class="ctl speed"><input id="fps" type="range" min="1" max="30" value="12" aria-label="Frames per second"> <span id="fpsVal">12</span> fps</label>
+          <span id="selInfo" class="selinfo"></span>
+          <button id="revertSelBtn" class="tb" hidden>Revert selected</button>
+          <button id="revertMoveBtn" class="tb" hidden>Revert all in this move</button>
+          <span class="spacer"></span>
+          <div class="splitbtn">
+            <button id="exportBtn" class="tb" title="Write this move's frames as PNGs and open the folder">Export move</button><button id="exportHelpBtn" class="tb icononly" aria-label="Painting rules and export folder" title="Painting rules and export folder"><svg class="ico"><use href="#i-help"/></svg></button><button id="exportOptsBtn" class="tb icononly" aria-haspopup="true" aria-expanded="false" aria-label="Export options" title="Export options"><svg class="ico"><use href="#i-chev"/></svg></button>
+            <div id="exportPop" class="popover up" hidden>
+              <label class="chk"><input id="expEffects" type="checkbox"> Include effects</label>
+              <label class="chk" title="Advanced: masks keep their data in the RGB channels, so the PNG can look empty"><input id="expMasks" type="checkbox"> Include masks (advanced)</label>
+              <label class="field" title="Put all the character frames on one shared canvas with room around them (for hair, hats, wigs)">Extra space around the frames
+                <select id="expSpace"><option value="0">none</option><option value="128">128 px</option><option value="256">256 px</option><option value="512">512 px</option></select></label>
+            </div>
+          </div>
+        </div>
+        <div id="strip" role="listbox" aria-multiselectable="true" aria-label="Frames" tabindex="0"></div>
+        <p class="hint" title="Dropping a PNG onto an edited frame replaces it directly, no need to revert first.">Drop PNGs to replace frames by name, edited ones too · Ctrl or Shift+click to select · Space plays, ←/→ step · scroll the stage to zoom, drag to move it · Ctrl+Z undoes a colour change, Ctrl+Y redoes it</p>
+      </div>
+    </div>
+
+    <div id="editedView" hidden>
+      <div class="viewhead">
+        <h1 id="editedTitle"></h1>
+        <span class="spacer"></span>
+        <button data-folder="edits" class="tb" title="Your edited PNGs (the mod is built from these)">Open edited PNGs</button>
+        <button data-folder="work" class="tb" title="Exported PNGs you are painting on">Open exported PNGs</button>
+        <button data-folder="project" class="tb" title="The whole mod project, all characters">Open project folder</button>
+      </div>
+      <p id="editedPath" class="muted"></p>
+      <div class="tlbar">
+        <h2>Frames</h2>
+        <span id="edSelInfo" class="selinfo"></span>
+        <button id="edSelectAll" class="tb">Select all</button>
+        <button id="edRevertBtn" class="tb" hidden>Revert selected</button>
+        <span class="spacer"></span>
+        <span class="muted small">Click to select, Ctrl or Shift for several, double-click to open the move.</span>
+      </div>
+      <p id="editedNone" class="muted">No edited frames for this character yet. Export a move, paint the PNGs, then drop them on the window.</p>
+      <div id="editedGrid" class="grid" role="listbox" aria-multiselectable="true" aria-label="Edited frames" tabindex="0"></div>
+      <div id="editedMissing" hidden>
+        <h2 class="lab">No longer in the game</h2>
+        <p class="muted">The game update removed these frames, so they are skipped when building. Revert to clear them.</p>
+        <div id="editedMissingList"></div>
+      </div>
+      <h2 class="lab">Palette colours</h2>
+      <div id="editedPals"></div>
+    </div>
+  </section>
+
+  <aside id="palPanel" aria-label="Palette">
+    <h2>Palette</h2>
+    <label class="field">Costume slot <select id="palSel"></select></label>
+    <p id="palHint" class="muted">Pick a costume slot to recolour it. Edit a spare slot rather than the default one, so the default look stays intact, then choose that colour at character select.</p>
+    <div id="palTools" hidden>
+      <label class="chk"><input id="palOnlyUsed" type="checkbox" checked> Only colours this move uses</label>
+      <span class="paltb">
+        <button id="palUndo" class="tb icononly" aria-label="Undo colour change" title="Undo colour change (Ctrl+Z)" disabled><svg class="ico"><use href="#i-undo"/></svg></button>
+        <button id="palRedo" class="tb icononly" aria-label="Redo colour change" title="Redo colour change (Ctrl+Y or Ctrl+Shift+Z)" disabled><svg class="ico"><use href="#i-redo"/></svg></button>
+        <button id="palReset" class="tb">Reset slot</button>
+      </span>
+    </div>
+    <div id="swEdit" role="group" aria-label="Colour editor" hidden>
+      <div class="swhead">
+        <strong id="swTitle"></strong>
+        <span class="chips" title="The colour when you opened it, and now"><i id="swWas"></i><i id="swNow"></i></span>
+        <span class="spacer"></span>
+        <button id="swPick" class="tb icononly" aria-pressed="false" aria-label="Pick a colour from the stage or a swatch" title="Pick a colour: click this, then click the character, the stage or any swatch"><svg class="ico"><use href="#i-drop"/></svg></button>
+      </div>
+      <div id="swSV" class="sv" tabindex="0" role="slider" aria-label="Saturation and brightness (arrow keys)"><i></i></div>
+      <div id="swHue" class="hue" tabindex="0" role="slider" aria-label="Hue (arrow keys)" aria-valuemin="0" aria-valuemax="359"><i></i></div>
+      <div class="swfields">
+        <input id="swHex" type="text" maxlength="7" spellcheck="false" aria-label="Hex colour">
+        <label>R<input id="swR" type="text" inputmode="numeric" maxlength="3" aria-label="Red"></label>
+        <label>G<input id="swG" type="text" inputmode="numeric" maxlength="3" aria-label="Green"></label>
+        <label>B<input id="swB" type="text" inputmode="numeric" maxlength="3" aria-label="Blue"></label>
+      </div>
+      <div id="swMatch" class="swmatch" hidden>
+        <button id="swRamp" class="tb" title="Work out shadow and light from this base, with the same shading steps the original costume has"><svg class="ico"><use href="#i-ramp"/></svg>Set shadow and light from base</button>
+        <label class="chk" title="While this is on, changing the base colour also updates shadow and light"><input id="swKeep" type="checkbox"> Keep them matched while I edit</label>
+      </div>
+      <div class="swrow">
+        <button id="swApply" class="tb primary" title="Keep the colour and close (Enter applies without closing)">Done</button>
+        <button id="swCancel" class="tb" title="Back to the colour it had when you opened it (Esc)">Cancel</button>
+        <span class="spacer"></span>
+        <button id="swReset" class="tb" title="The game's own colour for this swatch">Original</button>
+      </div>
+    </div>
+    <p id="palNote" class="muted" aria-live="polite"></p>
+    <div id="palGrid"></div>
+  </aside>
+</main>
+
+<input id="importInput" type="file" accept=".zip,application/zip" hidden>
+
+<dialog id="exportDlg">
+  <h2>How colours work</h2>
+  <ol class="rules">
+    <li><strong>Every part of a character uses a palette row</strong>: skin is one row, the robe another. Each row
+        holds three colours: shadow, base and light.</li>
+    <li><strong>The palette image in this folder shows every colour the game can use.</strong> Pick the colours
+        for your painting from it. A colour that is not in the image is swapped for the closest one that is.</li>
+    <li><strong>Paint a part with a palette colour, then change that row later.</strong> Once the PNG is back in
+        Frame Bender, you can turn that row into <em>any</em> colour in the Palette panel. Everything painted
+        with it changes together, and no colour is off limits there.</li>
+    <li><strong>Want two colours in one place?</strong> Paint it with colours from two different rows.</li>
+    <li>Parts you don't touch stay exactly as the game made them. Effects (fire, wind) are full colour and have
+        no palette limit.</li>
+  </ol>
+  <label class="chk"><input id="expPalette" type="checkbox" checked> Also export the palette as a PNG to pick colours from</label>
+  <h3>Export folder</h3>
+  <p id="expFolderNow" class="fn"></p>
+  <div class="row tight"><button id="expChoose" class="tb">Choose folder…</button><button id="expDefault" class="tb">Use the default</button></div>
+  <div id="expFolderType" hidden>
+    <label class="field">Paste the folder's path <input id="expFolderText" type="text" spellcheck="false"></label>
+    <button id="expFolderUse" class="tb">Use this folder</button>
+  </div>
+  <p id="expErr" class="bad" role="alert"></p>
+  <p class="muted small">A folder named after the move is made inside it. Dropping PNGs back works from any folder.</p>
+  <label class="chk"><input id="expHide" type="checkbox"> Don't show this again <span class="muted">(the ? next to Export move brings it back)</span></label>
+  <div class="row"><button id="expGo" class="tb primary">Export move</button><span class="spacer"></span><button id="expCancel" class="tb">Cancel</button></div>
+</dialog>
+
+<dialog id="shareDlg">
+  <h2>Share skin</h2>
+  <p id="shareSummary" class="muted"></p>
+  <label class="field">Name <input id="shareName" type="text" maxlength="80"></label>
+  <label class="field">Author <input id="shareAuthor" type="text" maxlength="80" placeholder="your name or handle (optional)"></label>
+  <label class="field">Description <textarea id="shareDesc" rows="3" maxlength="2000"></textarea></label>
+  <label class="chk"><input id="shareFrames" type="checkbox" checked> include edited frames</label>
+  <label class="chk"><input id="shareColors" type="checkbox" checked> include palette colours</label>
+  <p class="muted">The pack contains only your PNGs and colour changes, never the game's own files. Whoever imports it
+     needs the game; their editor fits your art to their copy.</p>
+  <div id="shareResult"></div>
+  <div class="row"><button id="shareGo" class="tb primary">Create skin pack</button><span class="spacer"></span><button id="shareClose" class="tb">Close</button></div>
+</dialog>
+
+<dialog id="importDlg">
+  <h2>Import skin</h2>
+  <div id="importBody"></div>
+  <div class="row"><button id="importGo" class="tb primary">Import</button><span class="spacer"></span><button id="importClose" class="tb">Close</button></div>
+</dialog>
+
+<dialog id="scanDlg">
+  <h2>Scan game folder</h2>
+  <p id="scanInfo" class="muted"></p>
+  <div id="scanList"></div>
+  <div class="row">
+    <button id="scanAll" class="tb primary" hidden>Back up all new</button>
+    <span class="spacer"></span>
+    <button id="scanClose" class="tb">Close</button>
+  </div>
+</dialog>
+
+<dialog id="askDlg">
+  <p id="askText"></p>
+  <label id="askCheckWrap" class="chk" hidden><input id="askCheck" type="checkbox"> <span id="askCheckText"></span></label>
+  <div class="row"><button id="askCancel" class="tb">Cancel</button><button id="askOk" class="tb primary">OK</button></div>
+</dialog>
+
+<div id="dropVeil" hidden><div>Drop PNGs to replace frames, or a .zip skin pack to import it</div></div>
+<script src="app.js"></script>
+</body>
+</html>
