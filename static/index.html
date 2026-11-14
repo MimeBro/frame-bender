@@ -68,19 +68,48 @@
 <div id="msg" class="strip" role="status" aria-live="polite" hidden><span id="msgText"></span><button id="msgClose" class="stripx" aria-label="Dismiss" title="Dismiss (Esc)"><svg class="ico"><use href="#i-close"/></svg></button></div>
 
 <section id="setup" hidden>
-  <h1>Welcome to Frame Bender</h1>
-  <p>Frame Bender changes how characters look by replacing a character's <code>.pak</code> file in the game's
-     <code>data_packages</code> folder. It always keeps an untouched backup of the original first.</p>
-  <ol>
-    <li>In Steam, verify your game files (right-click the game → Properties → Installed Files → Verify), so the
-        backup is the stock file.</li>
-    <li>Check the folder below is your game's <code>data_packages</code> folder.</li>
-    <li>Click <strong>Save and scan</strong>, then back up the characters you want to edit.</li>
-  </ol>
-  <label class="field">Game data folder <input id="gameDir" type="text" spellcheck="false"></label>
-  <button id="setupBtn" class="tb primary">Save and scan</button>
-  <p class="muted">Reading the game folder changes nothing. Only Build &amp; install and Restore original ever write to it.
-     Modified files have been tested in online matches without issues. As with any mod, the game's developers could change their rules at any time, so use Frame Bender at your own risk.</p>
+  <div class="setupcol">
+    <h1>Set up Frame Bender</h1>
+    <p class="lead">Frame Bender shows a mod by replacing a character's <code>.pak</code> file in the game folder.
+       Before it changes anything, it keeps a copy of the original, so one click puts the game back as it was.</p>
+
+    <div class="step" id="stepFolder">
+      <h2><span class="stepno">1</span>Game folder</h2>
+      <p id="gameDirNote" class="stepnote" role="status">Looking for the game…</p>
+      <div class="pathrow">
+        <input id="gameDir" type="text" spellcheck="false" aria-label="The game's data_packages folder">
+        <button id="gameDirBrowse" class="tb">Browse…</button>
+        <button id="setupBtn" class="tb primary">Find characters</button>
+      </div>
+      <p class="muted small">To find it yourself: in Steam, right-click the game, choose Manage, then Browse local files,
+         and open the <code>data_packages</code> folder.</p>
+    </div>
+
+    <div class="step" id="stepBackup" hidden>
+      <h2><span class="stepno">2</span>Back up characters</h2>
+      <p class="stepnote">A backup is a copy of the character's file as it is right now. If other mods have been used
+         on this game, verify the game files in Steam first (right-click the game, Properties, Installed Files, Verify).
+         Each backup takes about twice the file's size on disk. More characters can be added later from the
+         <svg class="ico inline" aria-hidden="true"><use href="#i-more"/></svg> menu.</p>
+      <div id="scanSlot">
+        <div id="scanBox">
+          <div class="scanhead">
+            <div class="scanrow">
+              <p id="scanInfo" role="status"></p>
+              <button id="scanAll" class="tb primary" hidden>Back up all</button>
+              <button id="scanOpen" class="tb primary" hidden>Open the editor</button>
+            </div>
+            <div id="scanProg" class="prog" hidden><div class="bar" id="scanBar"><i></i></div><span id="scanProgText"></span></div>
+          </div>
+          <div id="scanList"></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="muted small setupfoot">Finding and backing up characters only reads the game folder. Only Build &amp; install
+       and Restore original ever write to it. Modified files have been tested in online matches without issues. As with any
+       mod, the game's developers could change their rules at any time, so use Frame Bender at your own risk.</p>
+  </div>
 </section>
 
 <main id="browser" hidden>
@@ -120,8 +149,8 @@
           <div class="splitbtn">
             <button id="exportBtn" class="tb" title="Write this move's frames as PNGs and open the folder">Export move</button><button id="exportHelpBtn" class="tb icononly" aria-label="Painting rules and export folder" title="Painting rules and export folder"><svg class="ico"><use href="#i-help"/></svg></button><button id="exportOptsBtn" class="tb icononly" aria-haspopup="true" aria-expanded="false" aria-label="Export options" title="Export options"><svg class="ico"><use href="#i-chev"/></svg></button>
             <div id="exportPop" class="popover up" hidden>
-              <label class="chk"><input id="expEffects" type="checkbox"> Include effects</label>
-              <label class="chk" title="Advanced: masks keep their data in the RGB channels, so the PNG can look empty"><input id="expMasks" type="checkbox"> Include masks (advanced)</label>
+              <label id="expEffectsWrap" class="chk"><input id="expEffects" type="checkbox"> <span id="expEffectsText">Include effects</span></label>
+              <label id="expMasksWrap" class="chk" title="Advanced: a mask is the cut-out shape of an effect. It keeps its data in the colour channels, so the PNG can look empty."><input id="expMasks" type="checkbox"> <span id="expMasksText">Include masks (advanced)</span></label>
               <label class="field" title="As it is: each PNG is just the frame. Full screen: each PNG is the game's whole 3840×2160 screen with the frame at its real spot, so you can draw anywhere around it (hair, hats, wings).">Frame size
                 <select id="expSpace"><option value="0">As it is</option><option value="full">Full screen (3840×2160)</option></select></label>
               <label id="expColoursWrap" class="chk" title="Draw the exported frames with the colours of the costume slot picked in the Palette panel, your colour edits included. Without it they use the default costume."><input id="expColours" type="checkbox"> <span id="expColoursText">Use my current colours</span></label>
@@ -257,10 +286,8 @@
 
 <dialog id="scanDlg">
   <h2>Scan game folder</h2>
-  <p id="scanInfo" class="muted"></p>
-  <div id="scanList"></div>
+  <div id="scanDlgSlot"></div>
   <div class="row">
-    <button id="scanAll" class="tb primary" hidden>Back up all new</button>
     <span class="spacer"></span>
     <button id="scanClose" class="tb">Close</button>
   </div>

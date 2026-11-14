@@ -1,5 +1,5 @@
 @echo off
-rem Starts the skin editor in your browser. Nothing is installed or downloaded by this file.
+rem Starts Frame Bender in your browser. Nothing is installed or downloaded by this file.
 cd /d "%~dp0"
 python -c "import flask, PIL" 2>nul
 if errorlevel 1 (

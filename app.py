@@ -1,4 +1,4 @@
-"""Avatar Legends skin editor — local web server.
+"""Frame Bender: the local web server.
 
 Run:   python app.py
 Open:  http://127.0.0.1:8765
@@ -143,7 +143,9 @@ def setup():
 
 @app.get("/api/moves")
 def moves():
-    return jsonify(_ws().tree_json())
+    ws = _ws()
+    mods.warm(ws)                                   # get the palette rows ready in the background
+    return jsonify(ws.tree_json())
 
 
 @app.get("/api/move")
@@ -196,18 +198,37 @@ def png():
 
 # ----------------------------------------------------------------- scanning the game folder
 
+@app.get("/api/find-game")
+def find_game():
+    """Read-only: where the game is installed (any drive, any Steam library)."""
+    found = core.find_game_dirs(refresh=request.args.get("again") == "1")
+    return jsonify({"found": [str(f) for f in found]})
+
+
+@app.get("/api/progress")
+def progress():
+    """What a slow backup / unpack is doing right now: {step, done, total} or null."""
+    name = str(request.args.get("of", "")).lower()
+    return jsonify({"progress": core.progress_of(name) if core.CHAR_RE.fullmatch(name) else None})
+
+
 @app.post("/api/game-dir")
 def game_dir():
     """Remember where the game's data_packages folder is. Changes nothing in it."""
     folder = str(_body().get("game_dir", "")).strip().strip('"')
     if not folder or not Path(folder).is_dir():
-        raise core.EditorError(f"that folder does not exist: {folder or '(empty)'}")
+        raise core.EditorError(f"That folder does not exist: {folder or '(empty)'}")
     if not any(Path(folder).glob("*.pak")):
-        raise core.EditorError("no .pak files in that folder — pick the game's data_packages folder")
+        inner = Path(folder) / "data_packages"      # the game's own folder was picked: go one in
+        if inner.is_dir() and any(inner.glob("*.pak")):
+            folder = str(inner)
+        else:
+            raise core.EditorError("There are no .pak files in that folder. Pick the data_packages "
+                                   "folder inside the game's folder.")
     cfg = core.load_config()
     cfg["game_dir"] = folder
     core.save_config(cfg)
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "game_dir": folder})
 
 
 @app.post("/api/scan")
@@ -506,5 +527,5 @@ if __name__ == "__main__":
     if "--port" in sys.argv:                      # a second copy for testing, e.g. --port 8766
         PORT = int(sys.argv[sys.argv.index("--port") + 1])
         ALLOWED_HOSTS = {f"127.0.0.1:{PORT}", f"localhost:{PORT}"}
-    print(f"Skin editor running — open http://{HOST}:{PORT} in your browser. Ctrl+C to stop.")
+    print(f"Frame Bender is running. Open http://{HOST}:{PORT} in your browser. Ctrl+C to stop.")
     app.run(host=HOST, port=PORT, threaded=True, debug=False)

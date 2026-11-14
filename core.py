@@ -1,4 +1,4 @@
-"""Core logic for the Avatar Legends skin editor (no web code in here).
+"""Core logic for Frame Bender (no web code in here).
 
 Everything that touches files lives in this module:
   - verifying the untouched backup pak (SHA256)
@@ -63,8 +63,9 @@ from munged_extract import (apply_palette, decompress_lz4, default_palette_recor
                             read_palette_records_data, shader_rgb, unpack_tiles)
 from pak_extract import PakArchive, PakError  # noqa: E402
 
+GAME_FOLDER = "Avatar Legends The Fighting Game"
 DEFAULT_GAME_DIR = (r"C:\Program Files (x86)\Steam\steamapps\common"
-                    r"\Avatar Legends The Fighting Game\data_packages")
+                    rf"\{GAME_FOLDER}\data_packages")
 
 # Nothing is hard-coded: the first time a character is backed up, the hash of that pak is
 # remembered in originals.json and every later check compares against it. The game can
@@ -217,6 +218,109 @@ def row_map(pixels, palette):
     return _map_pixels(pixels, palette, "rows", convert)
 
 
+# ----------------------------------------------------------------- finding the game
+
+_found_games = None
+
+
+def _steam_roots():
+    """Steam's own folder(s), read from the registry (read-only)."""
+    roots = []
+    try:
+        import winreg
+    except ImportError:                                # not Windows
+        return roots
+    for hive, key, value in ((winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", "SteamPath"),
+                             (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath"),
+                             (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Valve\Steam", "InstallPath")):
+        try:
+            with winreg.OpenKey(hive, key) as handle:
+                text = winreg.QueryValueEx(handle, value)[0]
+            if isinstance(text, str) and text.strip():
+                roots.append(Path(text.strip()))
+        except OSError:
+            pass
+    return roots
+
+
+def _steam_libraries(root):
+    """Every Steam library folder listed in <Steam>/steamapps/libraryfolders.vdf (games can
+    be installed on any drive)."""
+    out = [root]
+    vdf = root / "steamapps" / "libraryfolders.vdf"
+    try:
+        if vdf.is_file() and vdf.stat().st_size <= 1024 * 1024:
+            text = vdf.read_text(encoding="utf-8", errors="replace")
+            for match in re.finditer(r'"path"\s+"([^"\r\n]{1,400})"', text):
+                out.append(Path(match.group(1).replace("\\\\", "\\")))
+    except OSError:
+        pass
+    return out
+
+
+def find_game_dirs(refresh=False):
+    """The game's data_packages folder(s) found on this PC, most likely first. Read-only.
+
+    Looks in the Steam libraries Steam itself lists, then in the usual library folder names
+    on every drive (for a Steam that is not in the registry)."""
+    global _found_games
+    if _found_games is not None and not refresh:
+        return list(_found_games)
+    libraries = []
+    for root in _steam_roots():
+        libraries += _steam_libraries(root)
+    for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+        drive = f"{letter}:\\"
+        if not os.path.isdir(drive):
+            continue
+        for sub in (r"Program Files (x86)\Steam", r"Program Files\Steam", "Steam", "SteamLibrary",
+                    r"Games\Steam", r"Games\SteamLibrary"):
+            libraries.append(Path(drive) / sub)
+    found = []
+    for library in libraries:
+        folder = library / "steamapps" / "common" / GAME_FOLDER / "data_packages"
+        try:
+            if folder.is_dir() and any(folder.glob("*.pak")):
+                folder = folder.resolve()
+                if not any(str(folder).lower() == str(f).lower() for f in found):
+                    found.append(folder)
+        except OSError:
+            pass
+    _found_games = found
+    return list(found)
+
+
+# ----------------------------------------------------------------- progress of slow work
+
+# What the slow steps are doing right now, so the page can show it: {character: {step, done,
+# total}}. step: "read", "copy" (bytes), "check", "unpack" (files; counted by progress_of).
+_progress = {}
+_progress_lock = threading.Lock()
+
+
+def set_progress(char, step=None, done=0, total=0, folder=None):
+    with _progress_lock:
+        if step is None:
+            _progress.pop(char, None)
+        else:
+            _progress[char] = {"step": step, "done": done, "total": total, "folder": folder}
+
+
+def progress_of(char):
+    """{step, done, total} for the character, or None when nothing slow is running."""
+    with _progress_lock:
+        item = dict(_progress.get(char) or {})
+    if not item:
+        return None
+    folder = item.pop("folder", None)
+    if item["step"] == "unpack" and folder:
+        try:                                           # count the files unpacked so far
+            item["done"] = sum(len(files) for _, _, files in os.walk(folder))
+        except OSError:
+            pass
+    return item
+
+
 # ----------------------------------------------------------------- config
 
 def load_config():
@@ -232,6 +336,10 @@ def load_config():
             cfg["export_dirs"] = {k: v for k, v in cfg["export_dirs"].items() if isinstance(v, str)}
         except (OSError, ValueError):
             pass
+    if not Path(cfg["game_dir"]).is_dir():             # another drive or library: look for it
+        found = find_game_dirs()
+        if found:
+            cfg["game_dir"] = str(found[0])
     return cfg
 
 
@@ -373,11 +481,18 @@ def installed_hash(char):
         return None
 
 
-def _copy_new(src, dst):
+def _copy_new(src, dst, char=None):
     """Copy src to dst; fails instead of overwriting, and verifies the copy."""
     dst.parent.mkdir(parents=True, exist_ok=True)
+    total, done = Path(src).stat().st_size, 0
     with Path(src).open("rb") as fi, dst.open("xb") as fo:
-        shutil.copyfileobj(fi, fo, 4 * 1024 * 1024)
+        for block in iter(lambda: fi.read(4 * 1024 * 1024), b""):
+            fo.write(block)
+            done += len(block)
+            if char:
+                set_progress(char, "copy", done, total)
+    if char:
+        set_progress(char, "check")
     if sha256_file(dst) != sha256_file(src):
         dst.unlink(missing_ok=True)
         raise EditorError("backup copy does not match the source — disk problem?")
@@ -404,9 +519,13 @@ def create_backup_if_missing(char, game_dir):
     src = Path(game_dir) / f"{char}.pak"
     if not src.is_file():
         raise EditorError(f"{src} not found — check the game folder setting")
-    digest = sha256_file(src)
-    _check_game_pak_is_stock(char, src, digest)
-    _copy_new(src, dst)
+    try:
+        set_progress(char, "read")
+        digest = sha256_file(src)
+        _check_game_pak_is_stock(char, src, digest)
+        _copy_new(src, dst, char)
+    finally:
+        set_progress(char)
     originals = _load_originals()
     originals[char] = digest
     ORIGINALS_PATH.write_text(json.dumps(originals, indent=2), encoding="utf-8")
@@ -466,7 +585,7 @@ def scan_game(game_dir):
                 state = "modded"
             else:
                 state = "update"
-        out.append({**info, "state": state})
+        out.append({**info, "state": state, "size": path.stat().st_size})
     return _sorted_characters(out)
 
 
@@ -491,10 +610,12 @@ def refresh_backup(char, game_dir):
     keep.parent.mkdir(parents=True, exist_ok=True)
     old.rename(keep)                                   # a move: the old backup is preserved
     try:
-        _copy_new(src, old)
+        _copy_new(src, old, char)
     except Exception:
         keep.rename(old)                               # put the old backup back
         raise
+    finally:
+        set_progress(char)
     originals = _load_originals()
     originals[char] = digest
     ORIGINALS_PATH.write_text(json.dumps(originals, indent=2), encoding="utf-8")
@@ -531,10 +652,13 @@ def ensure_cache(char):
         tmp.mkdir(parents=True)
         try:
             archive = PakArchive(backup_path(char))
+            set_progress(char, "unpack", 0, len(archive.entries), folder=str(tmp))
             archive.extract(tmp)           # writes tmp\<char>\...
         except (PakError, OSError) as err:
             shutil.rmtree(tmp, ignore_errors=True)
             raise EditorError(f"could not extract {char}.pak: {err}") from err
+        finally:
+            set_progress(char)
         tmp.rename(root)
         (root / ".complete").write_text(digest, encoding="ascii")
     return digest, root

@@ -3,75 +3,71 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Avatar Legends Skin Editor — setup</title>
-<style>
-  :root { --bg:#16181d; --panel:#1e2128; --panel2:#262a33; --line:#343945; --text:#e6e8ec; --muted:#8b93a3;
-          --accent:#f0a23b; --ok:#5cc98a; --bad:#ef6b6b; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 "Segoe UI",system-ui,sans-serif; }
-  main { max-width:760px; margin:0 auto; padding:28px 20px 60px; }
-  h1 { font-size:20px; margin:0 0 6px; } h2 { font-size:15px; margin:26px 0 8px; }
-  p { margin:8px 0; } .muted { color:var(--muted); } a { color:var(--accent); }
-  code { font-family:Consolas,monospace; background:var(--panel2); padding:1px 5px; border-radius:4px; overflow-wrap:anywhere; }
-  .box { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin:12px 0; }
-  .banner { background:#4a3410; color:#ffd591; border-radius:8px; padding:10px 14px; margin:14px 0; }
-  table { width:100%; border-collapse:collapse; margin:8px 0; }
-  td { padding:5px 8px; border-top:1px solid var(--line); vertical-align:top; }
-  td.st { white-space:nowrap; font-weight:600; width:110px; }
-  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--accent); }
-  button { background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:5px; padding:6px 14px;
-           font:inherit; cursor:pointer; margin:4px 8px 4px 0; }
-  button:hover { border-color:var(--accent); } button:disabled { opacity:.5; cursor:default; }
-  button.primary { background:var(--accent); color:#1b1300; border-color:var(--accent); font-weight:600; }
-  #msg { margin:12px 0; min-height:1.4em; overflow-wrap:anywhere; white-space:pre-wrap; }
-  ul { margin:6px 0; padding-left:20px; } li { margin:3px 0; overflow-wrap:anywhere; }
-</style>
+<title>Frame Bender</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
-  <h1>One more step before the editor can start</h1>
-  <p class="muted">The editor is built on the modding tools by <a href="https://github.com/calebrisc/avatar-legends-tools" target="_blank" rel="noopener">calebrisc (avatar-legends-tools)</a>.
-     Those tools are not included with this app, and <strong>nothing has been downloaded</strong>. You choose how to get them.</p>
-
-  <div class="banner" id="problem">Checking…</div>
-
-  <h2>Files needed</h2>
-  <table id="files"></table>
-  <p class="muted">Looked for all four in each of these folders:</p>
-  <ul id="looked" class="muted"></ul>
-
-  <div class="box">
-    <h2 style="margin-top:0">Option A — download them for me</h2>
-    <p>Clicking the button downloads exactly these four small files (under 100 KB in total) from
-       <code>raw.githubusercontent.com/calebrisc/avatar-legends-tools</code>, at one fixed version that this editor was tested with.
-       Each file is checked against a checksum built into the editor before it is saved, and a file that does not match is discarded.
-       Files you already have in that folder are not touched. Nothing else is downloaded and nothing about you is sent.</p>
-    <p class="muted">They will be saved in: <code id="dest"></code></p>
-    <p class="muted">Sources:</p>
-    <ul id="sources" class="muted"></ul>
-    <button id="dl" class="primary">Download the 4 files</button>
+<header id="topbar">
+  <div class="brand" aria-label="Frame Bender">
+    <span class="mark" aria-hidden="true"><i class="air"></i><i class="water"></i><i class="earth"></i><i class="fire"></i></span>
+    <span class="word">Frame Bender</span>
   </div>
+</header>
 
-  <div class="box">
-    <h2 style="margin-top:0">Option B — get them yourself</h2>
-    <ol>
-      <li>Open <a href="https://github.com/calebrisc/avatar-legends-tools" target="_blank" rel="noopener">github.com/calebrisc/avatar-legends-tools</a>
-          and use <em>Code → Download ZIP</em> (or <code>git clone</code> it).</li>
-      <li>Copy the four files listed above into the folder shown under Option A.</li>
-      <li>Click <em>Check again</em>.</li>
-    </ol>
-    <button id="open">Open that folder</button>
-    <button id="again">Check again</button>
+<section id="setup">
+  <div class="setupcol">
+    <h1>Add the tool scripts</h1>
+    <p class="lead">Frame Bender reads and writes the game's files with four scripts from
+       <a href="https://github.com/calebrisc/avatar-legends-tools" target="_blank" rel="noopener">avatar-legends-tools</a>
+       by calebrisc. They are not included with Frame Bender, so they need to be added once.</p>
+
+    <div class="step" id="stepGet">
+      <h2>Download them</h2>
+      <p class="stepnote">Gets the four scripts (under 100 KB together) from the avatar-legends-tools repository on GitHub,
+         at the version Frame Bender was tested with. Each file is checked against a known checksum before it is saved.
+         Nothing else is downloaded.</p>
+      <div class="btnrow">
+        <button id="dl" class="tb primary">Download the 4 scripts</button>
+        <button id="go" class="tb primary" hidden>Open Frame Bender</button>
+      </div>
+      <div id="prog" class="prog" hidden><div class="bar busy"><i></i></div><span id="progText"></span></div>
+      <p id="msg" class="stepnote" role="status" style="margin:10px 0 0" hidden></p>
+      <details>
+        <summary>What is downloaded, and where it goes</summary>
+        <table class="filetable" id="files"></table>
+        <p class="muted small">Downloaded from:</p>
+        <ul class="plain" id="sources"></ul>
+        <p class="muted small">Saved in:</p>
+        <ul class="plain"><li id="dest"></li></ul>
+      </details>
+    </div>
+
+    <div class="step">
+      <h2>Or add them yourself</h2>
+      <ol>
+        <li>Open <a href="https://github.com/calebrisc/avatar-legends-tools" target="_blank" rel="noopener">github.com/calebrisc/avatar-legends-tools</a>
+            and choose Code, then Download ZIP.</li>
+        <li>Copy <code>munged_extract.py</code>, <code>pak_extract.py</code>, <code>munged_encode.py</code> and
+            <code>type3_encode.py</code> into the folder that <em>Open the folder</em> shows.</li>
+        <li>Click <em>Check again</em>.</li>
+      </ol>
+      <div class="btnrow">
+        <button id="open" class="tb">Open the folder</button>
+        <button id="again" class="tb">Check again</button>
+      </div>
+      <details>
+        <summary>Folders that are checked for the scripts</summary>
+        <ul class="plain" id="looked"></ul>
+      </details>
+    </div>
   </div>
+</section>
 
-  <div id="msg"></div>
-  <button id="go" class="primary" hidden>Continue to the editor</button>
-</main>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
 const H = { "X-Skin-Editor": "1", "Content-Type": "application/json" };
-const MEANING = { ok: ["ok", "present, verified"], different: ["warn", "present, different version"], missing: ["bad", "missing"] };
+const MEANING = { ok: ["ok", "in place"], different: ["warn", "in place, another version"], missing: ["bad", "missing"] };
 
 async function call(path, post) {
   const res = await fetch(path, post ? { method: "POST", headers: H, body: "{}" } : {});
@@ -80,56 +76,77 @@ async function call(path, post) {
   return data;
 }
 
-function say(text, cls) { $("msg").textContent = text; $("msg").className = cls || ""; }
+function say(text, kind) {
+  $("msg").textContent = text;
+  $("msg").className = "stepnote " + (kind || "");
+  $("msg").hidden = !text;
+}
+
+function busy(text) {
+  $("prog").hidden = !text;
+  $("progText").textContent = text || "";
+}
 
 async function refresh() {
   const s = await call("/api/setup-status");
   $("dest").textContent = s.download_dir;
-  const t = $("files"); t.textContent = "";
+  const table = $("files");
+  table.textContent = "";
   for (const f of s.files) {
-    const tr = document.createElement("tr");
-    const [cls, label] = MEANING[f.state];
-    tr.innerHTML = "<td><code></code></td><td></td><td class='st'></td>";
-    tr.children[0].firstChild.textContent = f.name;
-    tr.children[1].textContent = f.purpose;
-    tr.children[2].textContent = label; tr.children[2].className = "st " + cls;
-    t.append(tr);
+    const [kind, label] = MEANING[f.state];
+    const row = table.insertRow();
+    row.insertCell().append(Object.assign(document.createElement("code"), { textContent: f.name }));
+    row.insertCell().textContent = f.purpose;
+    const state = row.insertCell();
+    state.textContent = label;
+    state.className = "st " + kind;
   }
-  $("looked").textContent = "";
-  for (const p of s.looked_in) { const li = document.createElement("li"); li.textContent = p; $("looked").append(li); }
-  $("sources").textContent = "";
-  for (const f of s.files) { const li = document.createElement("li"); li.textContent = f.url; $("sources").append(li); }
-  const missing = s.files.filter((f) => f.state === "missing").map((f) => f.name);
-  $("problem").textContent = s.ready ? "All the files are in place." :
-    "Missing: " + missing.join(", ") + ". The editor cannot start without them.";
-  $("problem").style.cssText = s.ready ? "background:#123a22;color:#9be8b8" : "";
+  for (const [id, items] of [["looked", s.looked_in], ["sources", s.files.map((f) => f.url)]]) {
+    $(id).textContent = "";
+    for (const text of items) $(id).append(Object.assign(document.createElement("li"), { textContent: text }));
+  }
   $("go").hidden = !s.ready;
+  $("dl").hidden = s.ready;
+  $("stepGet").classList.toggle("done", s.ready);
   return s;
 }
 
+const missingNames = (s) => s.files.filter((f) => f.state === "missing").map((f) => f.name).join(", ");
+
+async function openEditor() {
+  $("go").disabled = $("dl").disabled = true;
+  busy("Opening Frame Bender…");
+  const r = await call("/api/setup-continue", true);
+  if (!r.error) {
+    for (let i = 0; i < 40; i++) {                       // wait until the editor answers on this address
+      await new Promise((ok) => setTimeout(ok, 500));
+      try { if ((await fetch("/api/characters")).ok) { location.href = "/"; return; } } catch (e) { /* still switching */ }
+    }
+  }
+  busy("");
+  say(r.error || "Frame Bender did not open. Close this window and start it again.", "bad");
+  $("go").disabled = $("dl").disabled = false;
+}
+
 $("dl").onclick = async () => {
-  $("dl").disabled = true; say("Downloading… (4 small files)");
+  $("dl").disabled = true;
+  say("");
+  busy("Downloading and checking the four scripts…");
   const r = await call("/api/setup-download", true);
-  say(r.error ? r.error : `Downloaded and verified ${r.downloaded.length} file(s).` +
-      (r.kept.length ? ` Kept the ${r.kept.length} you already had (not overwritten).` : ""), r.error ? "bad" : "ok");
-  $("dl").disabled = false; await refresh();
+  busy("");
+  $("dl").disabled = false;
+  const s = await refresh();
+  if (r.error) say(r.error, "bad");
+  else if (s.ready) await openEditor();
+  else say("Still missing: " + missingNames(s), "bad");
 };
 $("open").onclick = async () => { const r = await call("/api/setup-open", true); if (r.error) say(r.error, "bad"); };
 $("again").onclick = async () => {
   const s = await refresh();
-  say(s.ready ? "Found them." : "Still missing: " + s.files.filter((f) => f.state === "missing").map((f) => f.name).join(", "), s.ready ? "ok" : "bad");
+  say(s.ready ? "All four scripts are in place." : "Still missing: " + missingNames(s), s.ready ? "ok" : "bad");
 };
-$("go").onclick = async () => {
-  $("go").disabled = true; say("Starting the editor…");
-  const r = await call("/api/setup-continue", true);
-  if (r.error) { say(r.error, "bad"); $("go").disabled = false; return; }
-  for (let i = 0; i < 40; i++) {                       // wait until the real editor answers
-    await new Promise((ok) => setTimeout(ok, 500));
-    try { if ((await fetch("/api/characters")).ok) { location.href = "/"; return; } } catch (e) { /* still switching */ }
-  }
-  say("The editor did not start. Close this window and start it again.", "bad"); $("go").disabled = false;
-};
-refresh();
+$("go").onclick = openEditor;
+refresh().then((s) => { if (s.ready) say("All four scripts are in place.", "ok"); });
 </script>
 </body>
 </html>

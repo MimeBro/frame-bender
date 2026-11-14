@@ -212,8 +212,17 @@ async function selectChar(name) {
       return;
     }
     if (!s.cache_ready) {
-      $("empty").textContent = `Unpacking ${name} for the first time… this can take up to a minute.`;
-      await api("/api/setup", {});
+      const note = el("span", null, `Unpacking ${name} for the first time…`);
+      const bar = el("div", "bar busy");
+      bar.append(el("i"));
+      $("empty").textContent = "";
+      $("empty").append(note, bar);
+      const watch = watchProgress(name, (pr) => {
+        if (gen !== state.gen || !pr) return;
+        note.textContent = `Unpacking ${name} for the first time: ${stepText(pr)}`;
+        setBar(bar, stepShare(pr));
+      });
+      try { await api("/api/setup", {}); } finally { watch.stop(); }
       if (gen !== state.gen) return;
       s = await refreshStatus();
     }
@@ -262,88 +271,226 @@ async function refreshAll() {
   await Promise.all([refreshStatus(), loadCharacters(), loadEdited()]);
 }
 
+// ---------------------------------------------------------------- progress of slow work
+
+// Asks the server every 400 ms what a backup / unpack is doing and hands it to onTick.
+function watchProgress(char, onTick) {
+  let on = true;
+  (async () => {
+    while (on) {
+      try {
+        const r = await fetch("/api/progress?of=" + encodeURIComponent(char)).then((x) => x.json());
+        if (on) onTick(r.progress);
+      } catch (e) { /* the next tick tries again */ }
+      await new Promise((ok) => setTimeout(ok, 400));
+    }
+  })();
+  return { stop() { on = false; } };
+}
+
+function stepText(pr) {
+  const pct = pr.total ? Math.round(100 * pr.done / pr.total) : 0;
+  if (pr.step === "read") return "reading the file";
+  if (pr.step === "copy") return `copying the file, ${pct}%`;
+  if (pr.step === "check") return "checking the copy";
+  if (pr.step === "unpack") return pr.total ? `unpacking, ${Math.min(pr.done, pr.total)} of ${pr.total} files` : "unpacking";
+  return "working";
+}
+
+// How far through one character's backup a step is (0..1): copy, check, then unpack.
+function stepShare(pr) {
+  const part = pr.total ? Math.min(1, pr.done / pr.total) : 0;
+  if (pr.step === "read") return 0.03;
+  if (pr.step === "copy") return 0.06 + 0.3 * part;
+  if (pr.step === "check") return 0.4;
+  if (pr.step === "unpack") return 0.45 + 0.55 * part;
+  return 0;
+}
+
+function setBar(bar, share) {                 // share: 0..1, or null when the amount is not known
+  bar.classList.toggle("busy", share === null);
+  bar.firstElementChild.style.width = share === null ? "" : Math.round(100 * share) + "%";
+}
+
+const sizeText = (bytes) => bytes >= 1e9 ? (bytes / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(bytes / 1e6)) + " MB";
+function timeLeft(seconds) {
+  if (seconds < 50) return "under a minute left";
+  return `about ${Math.round(seconds / 60)} min left`;
+}
+
+// ---------------------------------------------------------------- first setup: the game folder
+
+const inSetup = () => !$("setup").hidden;
+
+function folderNote(text, kind) {
+  $("gameDirNote").textContent = text;
+  $("gameDirNote").className = "stepnote " + (kind || "");
+}
+
 async function saveGameDir() {
   $("setupBtn").disabled = true;
   try {
-    await api("/api/game-dir", { game_dir: $("gameDir").value });
+    const r = await api("/api/game-dir", { game_dir: $("gameDir").value });
+    $("gameDir").value = r.game_dir;
+    folderNote("This is the game's folder.", "ok");
+    $("stepFolder").classList.add("done");
+    $("stepBackup").hidden = false;
     showMsg("");
-    await openScan();
+    await runScan();
   } catch (e) {
-    showMsg(e.message, "bad");
+    $("stepFolder").classList.remove("done");
+    folderNote(e.message, "bad");
   }
   $("setupBtn").disabled = false;
+}
+
+async function browseGameDir() {
+  const bridge = window.pywebview && window.pywebview.api;
+  if (bridge && bridge.choose_folder) {
+    try {
+      const folder = await bridge.choose_folder();
+      if (folder) { $("gameDir").value = folder; await saveGameDir(); }
+      return;
+    } catch (e) { /* fall through to typing */ }
+  }
+  folderNote("Paste the folder's path in the box, then click Find characters.", "warn");
+  $("gameDir").focus();
+  $("gameDir").select();
+}
+
+async function openSetup(data) {
+  $("gameDir").value = data.game_dir;
+  $("scanSlot").append($("scanBox"));
+  if (data.game_dir_ok) {                      // found (the usual Steam folder, or another drive)
+    await saveGameDir();
+    return;
+  }
+  folderNote("Looking for the game…");
+  let found = [];
+  try { found = (await api("/api/find-game")).found; } catch (e) { /* treated as not found */ }
+  if (found.length) {
+    $("gameDir").value = found[0];
+    await saveGameDir();
+  } else {
+    folderNote("The game was not found in the usual Steam folders. Paste its data_packages folder below, or use Browse.", "warn");
+  }
 }
 
 // ---------------------------------------------------------------- scan the game folder
 
 const SCAN_TEXT = {
   new: "not backed up yet",
-  ok: "up to date",
+  ok: "backed up",
   modded: "your mod is installed (Restore original to scan it)",
-  update: "the game changed this pak (game update?)",
+  update: "changed by a game update",
 };
+const scan = { rows: new Map(), busy: false };
+
+function scanProgress(text, share) {            // text "" hides it; share null = amount not known
+  $("scanProg").hidden = !text;
+  $("scanProgText").textContent = text;
+  setBar($("scanBar"), share === undefined ? null : share);
+}
 
 async function openScan() {
   closePopovers();
-  const dlg = $("scanDlg");
-  if (!dlg.open) dlg.showModal();
-  $("scanInfo").textContent = "Scanning the game folder… the first scan reads every pak and can take half a minute.";
+  $("scanDlgSlot").append($("scanBox"));
+  if (!$("scanDlg").open) $("scanDlg").showModal();
+  await runScan();
+}
+
+async function runScan() {
+  $("scanInfo").textContent = "";
   $("scanList").textContent = "";
-  $("scanAll").hidden = true;
+  $("scanAll").hidden = $("scanOpen").hidden = true;
+  scanProgress("Reading the game folder. The first time, checking every file can take half a minute…");
   try {
     renderScan(await api("/api/scan", {}));
   } catch (e) {
     $("scanInfo").textContent = e.message;
   }
+  scanProgress("");
 }
 
 function renderScan(data) {
   const paks = data.paks;
   const news = paks.filter((p) => p.state === "new");
   const updates = paks.filter((p) => p.state === "update");
-  $("scanInfo").textContent = `${data.game_dir} — ${plural(paks.length, "character pak")} found` +
-    (news.length ? `, ${news.length} not backed up yet` : "") +
-    (updates.length ? `, ${updates.length} changed by a game update` : "") + ".";
+  const done = paks.length - news.length;
+  $("scanInfo").textContent = !paks.length ? "No character files were found in this folder."
+    : news.length ? `${plural(paks.length, "character")} found, ${news.length} not backed up yet.`
+    : `All ${plural(paks.length, "character")} are backed up.`;
+  if (updates.length) $("scanInfo").textContent += ` ${updates.length} changed by a game update.`;
   const list = $("scanList");
   list.textContent = "";
+  scan.rows.clear();
   for (const p of paks) {
     const row = el("div", "srow");
-    row.append(el("span", "nm", p.name), el("span", "st " + p.state, SCAN_TEXT[p.state]));
+    const st = el("span", "st " + p.state, SCAN_TEXT[p.state]);
+    row.append(el("span", "nm", p.name), st, el("span", "sz", sizeText(p.size)));
+    let btn = null;
     if (p.state === "new" || p.state === "update") {
-      const b = el("button", "tb", p.state === "new" ? "Back up" : "Update backup");
-      b.onclick = () => scanAction(p, b);
-      row.append(b);
+      btn = el("button", "tb", p.state === "new" ? "Back up" : "Update backup");
+      btn.onclick = () => backUp([p]);
+      row.append(btn);
     }
+    scan.rows.set(p.name, { st, btn });
     list.append(row);
   }
   $("scanAll").hidden = news.length < 2;
-  $("scanAll").onclick = async () => {
-    $("scanAll").disabled = true;
-    for (const p of news) { if (!await scanAction(p, null, true)) break; }
-    $("scanAll").disabled = false;
-    await openScan();
-  };
+  $("scanAll").textContent = `Back up all ${news.length} (${sizeText(news.reduce((n, p) => n + p.size, 0))})`;
+  $("scanAll").onclick = () => backUp(news);
+  $("scanOpen").hidden = !(inSetup() && done > 0);
+  $("scanOpen").className = "tb" + (news.length ? "" : " primary");
+  if (inSetup()) $("stepBackup").classList.toggle("done", done > 0);
 }
 
-async function scanAction(p, btn, quiet) {
-  if (p.state === "update") {
+// Back up one or several characters, one after another, showing which one, which step and how long is left.
+async function backUp(list) {
+  if (scan.busy) return;
+  if (list.length === 1 && list[0].state === "update") {
+    const p = list[0];
     if (!await ask(`The game's ${p.name}.pak is different from your backup, so the game probably updated.\n\n` +
                    "Make sure this is the stock file (verify game files in Steam; Restore original if you installed a mod). " +
                    "Your old backup is kept in backup\\previous and your edits are re-applied to the new version.",
-                   "Update backup")) return false;
+                   "Update backup")) return;
   }
-  if (btn) { btn.disabled = true; btn.textContent = "working…"; }
-  try {
-    await api(p.state === "new" ? "/api/backup" : "/api/refresh-backup", { char: p.name });
-  } catch (e) {
-    $("scanInfo").textContent = `${p.name}: ${e.message}`;
-    if (btn) { btn.disabled = false; btn.textContent = p.state === "new" ? "Back up" : "Update backup"; }
-    return false;
+  scan.busy = true;
+  for (const b of $("scanBox").querySelectorAll("button")) b.disabled = true;
+  const started = performance.now();
+  let failed = "";
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i], ui = scan.rows.get(p.name);
+    const count = list.length > 1 ? ` (${i + 1} of ${list.length})` : "";
+    const left = () => {
+      if (!i) return "";                      // no idea yet how long one takes
+      return ". " + timeLeft((performance.now() - started) / 1000 / i * (list.length - i));
+    };
+    ui.st.className = "st busy";
+    ui.st.textContent = "";
+    ui.st.append(el("span", "spin"), "backing up…");
+    scanProgress(`Backing up ${p.name}${count}…`, i / list.length);
+    const watch = watchProgress(p.name, (pr) => {
+      if (!pr) return;
+      scanProgress(`Backing up ${p.name}${count}: ${stepText(pr)}${left()}`, (i + stepShare(pr)) / list.length);
+    });
+    try {
+      await api(p.state === "new" ? "/api/backup" : "/api/refresh-backup", { char: p.name });
+      ui.st.className = "st ok";
+      ui.st.textContent = "backed up";
+      if (ui.btn) ui.btn.remove();
+    } catch (e) {
+      failed = `${p.name}: ${e.message}`;
+    }
+    watch.stop();
+    if (failed) break;
   }
-  if (!quiet) await openScan();
+  scan.busy = false;
   await loadCharacters();
-  if (!$("setup").hidden) await start();
-  return true;
+  await runScan();
+  for (const b of $("scanBox").querySelectorAll("button")) b.disabled = false;
+  if (failed) $("scanInfo").textContent = failed;
+  else if (inSetup()) $("scanOpen").focus();
 }
 
 // ---------------------------------------------------------------- sharing: skin packs
@@ -415,7 +562,7 @@ async function importFile(file) {
       await selectChar(report.character);
       return importFile(file);
     }
-    showMsg(`This skin is for ${report.character}, which is not set up here yet. Use Scan game folder to back it up, then import again.`, "bad");
+    showMsg(`This skin is for ${report.character}, which is not backed up here yet. Open the “…” menu, choose Scan game folder and back it up, then import again.`, "bad");
     return;
   }
   showMsg("");
@@ -670,8 +817,7 @@ async function exportMove() {
   if (!current) return;
   $("exportBtn").disabled = true;
   const withPalette = store.get("skin-editor-export-palette") !== "0";
-  showMsg(`Exporting ${current.move}${withPalette ? " and the palette image" : ""}. This can take up to a minute; ` +
-          "the folder opens by itself when it is ready…");
+  showMsg(`Exporting ${current.move}${withPalette ? " and its palette image" : ""}. The folder opens when it is ready…`, "busy", true);
   try {
     const r = await api("/api/export", { ...current, effects: $("expEffects").checked, masks: $("expMasks").checked,
                                          full: $("expSpace").value === "full",
@@ -681,8 +827,7 @@ async function exportMove() {
     if (r.palette) text += `, plus ${r.palette} to pick colours from`;
     if (r.canvas) text += `: each character frame sits on a ${r.canvas[2]}×${r.canvas[3]} canvas at its real spot, so you can draw beyond the outline`;
     if (r.kept) text += `. ${r.kept} already there were left untouched`;
-    if (r.skipped_effects) text += `. ${plural(r.skipped_effects, "effect image")} not exported (tick “effects”)`;
-    if (r.skipped_masks) text += `. ${plural(r.skipped_masks, "mask image")} not exported (tick “masks”)`;
+    if (r.skipped_effects) text += `. ${plural(r.skipped_effects, "effect image")} left out (the arrow next to Export move has “Include effects”)`;
     if (r.failed) text += `. ${r.failed} could not be read`;
     showMsg(text + ".", "ok");
   } catch (e) {
@@ -1004,6 +1149,12 @@ async function openMove(category, move, frameName) {
   }
   if (gen !== state.gen || current !== asked) return;
   player.groups = groups;
+  const all = groups.flatMap((g) => g.frames);          // export options: only what this move has
+  const fx = all.filter((f) => f.type === 6 && !f.mask).length, masks = all.filter((f) => f.mask).length;
+  $("expEffectsWrap").hidden = !fx;
+  $("expMasksWrap").hidden = !masks;
+  $("expEffectsText").textContent = `Include effects (${plural(fx, "image")})`;
+  $("expMasksText").textContent = `Include effect masks (${plural(masks, "image")}, advanced)`;
   const gsel = $("groupSel");
   gsel.textContent = "";
   let startGroup = -1;
@@ -2117,17 +2268,21 @@ async function start() {
   for (const id of ["charPick", "grpProject", "grpShare", "grpGame"]) $(id).hidden = !ready;
   if (!ready) {
     $("browser").hidden = true;
-    $("gameDir").value = data.game_dir;
+    await openSetup(data);
     return;
   }
-  await loadSettings();
-  updateNoticeMenu();
   let want = store.get("skin-editor-char") || data.current;
   if (!data.characters.some((c) => c.name === want)) want = data.characters[0].name;
+  state.char = want;                           // settings are asked for a character that is backed up
+  await loadSettings();
+  updateNoticeMenu();
   await selectChar(want);
 }
 
 $("setupBtn").onclick = saveGameDir;
+$("gameDirBrowse").onclick = browseGameDir;
+$("gameDir").onkeydown = (e) => { if (e.key === "Enter") saveGameDir(); };
+$("scanOpen").onclick = start;
 $("charBtn").onclick = () => { if (togglePopover("charPop", "charBtn")) { $("charSearch").value = ""; renderCharList(); $("charSearch").focus(); } };
 $("charSearch").oninput = renderCharList;
 $("charSearch").onkeydown = (e) => {
@@ -2150,6 +2305,7 @@ $("importGo").onclick = applyImport;
 $("importClose").onclick = () => $("importDlg").close();
 $("scanBtn").onclick = openScan;
 $("scanClose").onclick = () => $("scanDlg").close();
+$("scanDlg").addEventListener("close", () => { if (state.char) refreshAll().catch(() => {}); });
 $("rebuildBtn").onclick = rebuildCheck;
 $("noticeBtn").onclick = showNoticeAgain;
 $("installBtn").onclick = installMod;

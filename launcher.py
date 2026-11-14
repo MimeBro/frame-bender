@@ -1,4 +1,4 @@
-"""Desktop launcher: starts the local server and shows the editor in its own window.
+"""Frame Bender's desktop launcher: starts the local server and shows the editor in its own window.
 
     python launcher.py            window (needs `pip install pywebview` and the Edge WebView2 runtime)
     python launcher.py --browser  use your normal browser instead of a window (Ctrl+C to stop)
@@ -12,7 +12,10 @@ If the original modding tools (avatar-legends-tools) are missing, a setup screen
 what is missing and offers a download button or manual steps. Nothing is downloaded until
 the user clicks that button.
 
-This is also the entry point of the packaged AvatarLegendsSkinEditor.exe (see build_exe.py).
+If the window cannot open (Windows blocked files of a downloaded zip, or WebView2 is missing),
+the editor opens in the normal browser instead and a small box stays up to close it.
+
+This is also the entry point of the packaged FrameBender.exe (see build_exe.py).
 """
 import ctypes
 import json
@@ -100,6 +103,9 @@ class SetupServer:
                 if self.path in ("/", "/index.html", "/setup.html"):
                     page = (paths.APP_DIR / "static" / "setup.html").read_bytes()
                     return self._send(200, page, "text/html")
+                if self.path == "/style.css":            # the editor's own look
+                    sheet = (paths.APP_DIR / "static" / "style.css").read_bytes()
+                    return self._send(200, sheet, "text/css")
                 if self.path == "/api/setup-status":
                     return self._send(200, outer.status())
                 self._send(404, {"error": "not found"})
@@ -156,7 +162,7 @@ class SetupServer:
 
     def proceed(self):
         if self.paths.find_tools() is None:
-            return {"error": "The four files are still not all in place."}
+            return {"error": "The four scripts are not all in place yet."}
         threading.Thread(target=self.on_ready, daemon=True).start()
         return {"ok": True}
 
@@ -169,7 +175,7 @@ def start_editor_server():
         import app as web
     except ImportError as err:
         name = getattr(err, "name", None) or str(err)
-        raise SystemExit(f"A Python package the editor needs is missing: {name}\n\n"
+        raise SystemExit(f"A Python package Frame Bender needs is missing: {name}\n\n"
                          "Install the requirements with:\n    python -m pip install -r requirements.txt")
     from werkzeug.serving import make_server
     server = make_server(web.HOST, web.PORT, web.app, threaded=True)
@@ -234,6 +240,21 @@ def show_window(url):
     webview.start(private_mode=False, storage_path=str(paths.DATA_DIR / "webview"))
 
 
+def use_browser_instead(url, err):
+    """The window could not open: show the editor in the normal browser. There is no window to
+    close then, so a message box stays up and closing it stops Frame Bender."""
+    import webbrowser
+    webbrowser.open(url)
+    message("The Frame Bender window could not open on this PC, so Frame Bender opened in your "
+            "browser instead. It works the same there.\n\n"
+            "Leave this box open while you work. Click OK to close Frame Bender.\n\n"
+            "To get the window back: the usual cause is that Windows blocked the files of the "
+            "downloaded zip. Delete the unzipped folder, right-click the zip, choose Properties, "
+            "tick Unblock, click OK, and unzip it again. If that does not help, install the "
+            f"Microsoft Edge WebView2 Runtime: {WEBVIEW2_URL}\n\n"
+            f"Details: {err}", error=False)
+
+
 def main(argv):
     apply_path_options(argv)
     running = Running()
@@ -252,14 +273,14 @@ def main(argv):
         else:
             running.editor = start_editor_server()
     except SystemExit as err:
-        message(str(err) or "The editor could not start.")
+        message(str(err) or "Frame Bender could not start.")
         return 1
     except OSError as err:
-        message(f"The editor could not start its local server on port 8765 ({err}).\n"
+        message(f"Frame Bender could not start its local server on port 8765 ({err}).\n"
                 "Another program may be using that port.")
         return 1
     except Exception as err:
-        message(f"The editor could not start:\n{err}")
+        message(f"Frame Bender could not start:\n{err}")
         raise
 
     if "--check" in argv:
@@ -272,21 +293,22 @@ def main(argv):
         if "--browser" in argv:
             import webbrowser
             webbrowser.open(url)
-            print(f"Skin editor running at {url} — press Ctrl+C to stop.")
+            print(f"Frame Bender is running at {url}. Press Ctrl+C to stop.")
             while True:
                 time.sleep(3600)
         else:
             show_window(url)
     except KeyboardInterrupt:
         pass
-    except ImportError:
-        message("The window component (pywebview) is not installed.\nRun:  python -m pip install pywebview\n"
-                "or start the editor with run.bat to use your browser.")
-        return 1
     except Exception as err:
-        message(f"The editor window could not open:\n{err}\n\n"
-                f"It needs the Microsoft Edge WebView2 Runtime (included in recent Windows):\n{WEBVIEW2_URL}")
-        raise
+        import paths
+        if isinstance(err, ImportError) and not paths.FROZEN:
+            message("The window component (pywebview) is not installed.\nRun:  python -m pip install pywebview\n"
+                    "or start Frame Bender with run.bat to use your browser.")
+            return 1
+        import traceback
+        traceback.print_exc()                            # into launcher.log for the packaged app
+        use_browser_instead(url, err)
     finally:
         running.stop()
     return 0

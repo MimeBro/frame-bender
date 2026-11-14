@@ -1,10 +1,10 @@
-"""Build the Windows app: dist/AvatarLegendsSkinEditor/AvatarLegendsSkinEditor.exe
+"""Build the Windows app: dist/FrameBender/FrameBender.exe
 
     python -m pip install -r requirements-build.txt
     python build_exe.py
 
 The result is a folder (zip it to share). It opens in its own window (Edge WebView2) and
-keeps your data in %LOCALAPPDATA%\\AvatarLegendsSkinEditor.
+keeps your data in %LOCALAPPDATA%\\FrameBender.
 
 avatar-legends-tools is deliberately NOT included: it has no license allowing redistribution.
 On first run the app shows a setup screen; the user can download the four scripts it needs
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-NAME = "AvatarLegendsSkinEditor"
+NAME = "FrameBender"
 
 # The tool scripts are loaded from disk at run time, so PyInstaller cannot see which
 # standard-library modules they need. List them here.
@@ -52,6 +52,7 @@ def main():
         "--workpath", str(HERE / "build" / "pyinstaller"),
         "--specpath", str(HERE / "build" / "pyinstaller"),
         "--add-data", f"{HERE / 'static'};static",
+        "--add-data", f"{HERE / 'rows_known.json'};.",      # palette rows per character (make_rows_known.py)
         "--paths", str(HERE),
     ]
     for module in TOOLS_STDLIB:

@@ -122,11 +122,50 @@ input::placeholder, textarea::placeholder { color: var(--mute); }
 .strip.ok { color: var(--earth-text); background: var(--earth-bg); }
 .strip.bad { color: var(--fire-text); background: var(--fire-bg); }
 
-/* ---------------------------------------------------------------- welcome */
-#setup { padding: 32px; max-width: 760px; overflow-y: auto; }
-#setup h1 { font-size: 24px; margin-bottom: 12px; }
-#setup p, #setup ol { margin: 10px 0; color: var(--text2); }
-#setup li { margin: 4px 0; }
+/* ---------------------------------------------------------------- first setup (also used by setup.html) */
+#setup { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 32px 40px; }
+.setupcol { max-width: 720px; margin: 0 auto; }
+#setup h1 { font-size: 28px; letter-spacing: -.01em; margin-bottom: 8px; }
+.lead { color: var(--text2); font-size: 14px; max-width: 64ch; }
+.step { margin-top: 16px; padding: 14px 16px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.step h2 { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 8px; }
+.stepno { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--raise); color: var(--text2); font-size: 12px; font-weight: 700; }
+.step.done .stepno { background: var(--earth-bg); color: var(--earth-text); }
+.stepnote { color: var(--text2); margin-bottom: 10px; max-width: 70ch; overflow-wrap: anywhere; }
+.stepnote.ok { color: var(--earth-text); }
+.stepnote.warn { color: var(--air-text); }
+.stepnote.bad { color: var(--fire-text); }
+.ico.inline { width: 14px; height: 14px; vertical-align: -3px; }
+.pathrow { display: flex; gap: 6px; margin-bottom: 8px; }
+.pathrow input { flex: 1; min-width: 0; font-family: Consolas, monospace; font-size: 12px; }
+.setupfoot { margin-top: 16px; max-width: 76ch; }
+.step ol { margin: 0 0 10px; padding-left: 20px; color: var(--text2); }
+.step li { margin: 4px 0; }
+.step a, .lead a { color: var(--water); }
+.step .btnrow { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.step details { margin-top: 12px; }
+.step details > summary { padding: 4px 0; font-weight: 500; color: var(--text2); }
+.filetable { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 12px; }
+.filetable td { padding: 5px 8px 5px 0; border-top: 1px solid var(--line); vertical-align: top; color: var(--text2); }
+.filetable td.st { white-space: nowrap; text-align: right; padding-right: 0; }
+.plain { margin: 4px 0 10px; padding-left: 18px; font: 12px Consolas, monospace; color: var(--mute); overflow-wrap: anywhere; }
+
+/* progress: a bar with a known amount, or .busy when the amount is not known */
+.bar { height: 6px; border-radius: 3px; background: var(--raise); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--water); transition: width .25s linear; }
+.bar.busy i { width: 28%; transition: none; animation: barslide 1.3s ease-in-out infinite; }
+@keyframes barslide { from { transform: translateX(-110%); } to { transform: translateX(370%); } }
+.prog { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.prog span { font-size: 12px; color: var(--text2); }
+.spin { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 50%;
+  border: 2px solid var(--line2); border-top-color: var(--water); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.strip.busy { position: relative; }
+.strip.busy::after { content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 22%; background: var(--water);
+  animation: barslide 1.3s ease-in-out infinite; }
+.empty .bar { width: 280px; margin: 10px auto 0; }
+.empty { text-align: center; }
 
 /* ---------------------------------------------------------------- main layout */
 #browser { flex: 1; min-height: 0; display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; }
@@ -290,7 +329,13 @@ dialog .row { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
 #askCheckWrap { display: flex; margin-top: 12px; }
 #shareResult { margin-top: 10px; overflow-wrap: anywhere; }
 #shareResult .dl { margin-left: 10px; color: var(--water); }
-.srow { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+.scanhead { position: sticky; top: 0; z-index: 2; background: var(--panel); padding: 6px 0 10px; }
+.scanrow { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+#scanInfo { flex: 1; min-width: 0; color: var(--text2); overflow-wrap: anywhere; }
+#scanDlg #scanList { min-height: 60px; }
+.srow { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 5px 0; border-top: 1px solid var(--line); }
+.srow .st.busy { color: var(--water-text); }
+.srow .sz { font-size: 12px; color: var(--mute); width: 64px; text-align: right; }
 .srow .nm { width: 170px; font-weight: 600; }
 .srow .st { flex: 1; font-size: 12px; color: var(--text2); }
 .srow .st.ok { color: var(--earth-text); } .srow .st.new { color: var(--air-text); } .srow .st.update { color: var(--fire-text); } .srow .st.modded { color: var(--air-text); }

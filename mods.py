@@ -39,6 +39,33 @@ _build_locks = {}          # (character, frame) -> lock, so one frame is never r
 
 # ----------------------------------------------------------------- snapping (type 3)
 
+def _known_rows(ws):
+    """Rows from rows_known.json (made by make_rows_known.py), if it has this exact pak."""
+    try:
+        item = json.loads((core.APP_DIR / "rows_known.json").read_text(encoding="ascii")).get(ws.char)
+        if item["sha256"] == ws.digest:
+            return [int(r) for r in item["rows"]]
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        pass
+    return None
+
+
+def warm(ws):
+    """Work out allowed_rows in the background (once), so the first export or drop for a
+    character does not wait for it. Only does real work for a pak rows_known.json does not
+    cover, such as after a game update."""
+    if getattr(ws, "_warming", False) or ws._cands is not None:
+        return
+    ws._warming = True
+
+    def work():
+        try:
+            allowed_rows(ws)
+        except EditorError:
+            pass
+    threading.Thread(target=work, daemon=True).start()
+
+
 def allowed_rows(ws):
     """Palette rows the character's own frames really use (cached per pak).
 
@@ -57,6 +84,8 @@ def allowed_rows(ws):
                 rows = [int(r) for r in json.loads(rows_file.read_text(encoding="ascii"))]
             except (OSError, ValueError, TypeError):
                 rows = None
+        if rows is None:
+            rows = _known_rows(ws)                 # worked out ahead of time for this exact pak
         if rows is None:
             stems = [stem for stem, e in ws.frames.items()
                      if e["kind"] == "frames" and not e["mask"]]

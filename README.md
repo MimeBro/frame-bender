@@ -62,14 +62,15 @@ game with one click. One more click puts the original back.
 
 ### A. Windows app (no Python needed)
 
-1. Download the `AvatarLegendsSkinEditor` zip from this repository's **Releases** page (if there is no release
-   yet, build it yourself: see [Build the Windows app](#build-the-windows-app)). Before unzipping, right-click the
-   zip → **Properties** → tick **Unblock** → OK. That tells Windows you trust the download, so it will not warn
-   about every file inside. Then unzip it anywhere.
-2. Double-click `AvatarLegendsSkinEditor.exe`. Windows may warn that the app is unsigned: choose
+1. Download the `FrameBender` zip from this repository's **Releases** page (if there is no release
+   yet, build it yourself: see [Build the Windows app](#build-the-windows-app)). **Before unzipping**, right-click
+   the zip → **Properties** → tick **Unblock** → OK. That tells Windows you trust the download. Without it,
+   Windows (Windows 10 in particular) can block files inside the folder and the app's window cannot open.
+   Then unzip it anywhere.
+2. Double-click `FrameBender.exe`. Windows may warn that the app is unsigned: choose
    *More info → Run anyway* if you trust this source, or build it yourself.
-3. The first start shows a **setup screen**. The app needs four small scripts from avatar-legends-tools, which it
-   is not allowed to include. Click **Download the 4 files** (it shows the exact addresses and verifies each file),
+3. The first start asks for four small scripts from avatar-legends-tools, which Frame Bender is not allowed to
+   include. Click **Download the 4 scripts** (the screen lists the exact addresses and each file is verified),
    or copy them in by hand as the screen explains.
 4. Continue with [First run](#first-run).
 
@@ -101,12 +102,16 @@ them. If you cloned without it, run `git submodule update --init`.
 
 ### First run
 
-1. In Steam, **verify the game files** (right-click the game → Properties → Installed Files → Verify). Your backup
-   is a copy of whatever is in the game folder now, so it must be the stock file.
-2. Check the folder shown is your game's `data_packages` folder (the default Steam path is pre-filled) and click
-   **Save and scan**.
-3. Click **Back up** next to the characters you want to edit. Backups are never modified afterwards.
-4. Pick a character. The first time, unpacking takes up to a minute.
+1. If you have used other mods on this game, **verify the game files** in Steam first (right-click the game →
+   Properties → Installed Files → Verify). A backup is a copy of whatever is in the game folder now, so it must
+   be the stock file.
+2. **Game folder**: Frame Bender looks for the game in every Steam library, on any drive. If it does not find
+   it, paste the game's `data_packages` folder or use **Browse…** (in Steam: right-click the game → Manage →
+   Browse local files, then open `data_packages`).
+3. **Back up characters**: click **Back up all**, or **Back up** next to the ones you want. A bar shows which
+   character is being copied and how long is left. Each backup takes about twice the file's size on disk, and
+   backups are never modified afterwards. More characters can be added later ("…" menu → **Scan game folder…**).
+4. Click **Open the editor** and pick a character.
 
 ## Tutorials
 
@@ -160,13 +165,14 @@ Every part of a character uses a **palette row**: skin is one row, the robe anot
 
 | You see | It means | What to do |
 |---|---|---|
-| Setup screen "Missing: munged_extract.py, …" | the four tool scripts are not there | click **Download the 4 files**, or copy them in by hand (the screen says where) |
+| "Add the tool scripts" screen | the four tool scripts are not there | click **Download the 4 scripts**, or copy them in by hand (the screen says where) |
+| "The Frame Bender window could not open… opened in your browser instead" | Windows blocked files of the downloaded zip (common on Windows 10), or WebView2 is missing | it works in the browser as it is. To get the window back: delete the unzipped folder, right-click the zip → Properties → **Unblock**, unzip again. Or, in PowerShell inside the folder: `Get-ChildItem -Recurse \| Unblock-File` |
 | Windows "protected your PC" / antivirus warning | the app is unsigned | *More info → Run anyway*, or build it yourself from this source |
-| "A Python package the editor needs is missing: flask" (or Pillow) | requirements not installed | `python -m pip install -r requirements.txt` |
+| "A Python package Frame Bender needs is missing: flask" (or Pillow) | requirements not installed | `python -m pip install -r requirements.txt` |
 | "The window component (pywebview) is not installed" | you ran `launcher.py` without it | `python -m pip install pywebview`, or use `run.bat` |
 | "…needs the Microsoft Edge WebView2 Runtime" | WebView2 is missing (rare on current Windows) | install it from Microsoft (link in the message), or use `run.bat` |
 | "could not start its local server on port 8765" | the app is already open, or another program uses the port | close the other copy and start again |
-| "game folder not found" / "no .pak files in that folder" | wrong folder | paste the game's `data_packages` folder |
+| "The game was not found in the usual Steam folders" / "There are no .pak files in that folder" | the game is somewhere unusual, or the wrong folder was picked | in Steam: right-click the game → Manage → Browse local files, open `data_packages`, and paste that path (or use **Browse…**) |
 | Install or Restore says the file is in use | the game is running | close the game, then try again |
 | Install or Restore refuses: the game file is not the backup or your mod | a game update changed the file | **Scan game folder… → Update backup** (in the "…" menu), then install again |
 | "No verified backup" | that character was never backed up, or the backup changed | verify the game files in Steam, then **Scan game folder… → Back up** |
@@ -176,7 +182,7 @@ Every part of a character uses a **palette row**: skin is one row, the robe anot
 | The mod is gone after a game update | updates replace the game's files | **Scan game folder…**, update the backup, **Build & install** again |
 | The colour did not change in game | you edited a different costume slot than you picked in game | check the slot name; test in Training mode |
 
-`launcher.log` in the data folder (`%LOCALAPPDATA%\AvatarLegendsSkinEditor` for the Windows app) records errors.
+`launcher.log` in the data folder (`%LOCALAPPDATA%\FrameBender` for the Windows app) records errors.
 
 ## Painting tips
 
@@ -186,9 +192,10 @@ Every part of a character uses a **palette row**: skin is one row, the robe anot
   almost the same as one of the frame's own is moved onto the frame's own row.
 - The outline's outer edge is soft (semi-transparent black). Draw new outlines with an anti-aliased brush; a hard
   pencil edge stays hard in game.
-- The first replacement for a character takes up to a minute; after that each frame takes a couple of seconds.
+- Each replaced frame takes a couple of seconds.
 - Keep transparency transparent. Effect PNGs use plain (non-premultiplied) alpha.
-- Masks (`…_mask`) keep their data in the RGB channels even where alpha is 0, so they can look empty. Leave them
+- Masks (`…_mask`) are the cut-out shapes of some effects. Only moves that have them offer *Include effect
+  masks*. They keep their data in the RGB channels even where alpha is 0, so they can look empty. Leave them
   alone unless you know what you are doing.
 
 ## After a game update
@@ -207,7 +214,7 @@ python -m pip install -r requirements-build.txt
 python build_exe.py
 ```
 
-This makes `dist\AvatarLegendsSkinEditor\` (zip the folder to share it). Use Python 3.10.11 or newer; 3.10.0 has
+This makes `dist\FrameBender\` (zip the folder to share it). Use Python 3.10.11 or newer; 3.10.0 has
 a bug that breaks PyInstaller. If your system Python is older, [uv](https://docs.astral.sh/uv/) can make a
 separate build environment without touching it:
 
@@ -223,8 +230,9 @@ uv pip install --python .venv-build -r requirements-build.txt
 .venv-build\Scripts\python build_exe.py
 ```
 
-- Your data (backups, projects, cache, settings) is kept in `%LOCALAPPDATA%\AvatarLegendsSkinEditor`. Start the
-  exe with `--data <folder>` and/or `--backup <folder>` to use other folders.
+- Your data (backups, projects, cache, settings) is kept in `%LOCALAPPDATA%\FrameBender`. Start the
+  exe with `--data <folder>` and/or `--backup <folder>` to use other folders. (Earlier builds were called
+  `AvatarLegendsSkinEditor`; a data folder with that name is renamed to `FrameBender` on the first start.)
 - The tool scripts are deliberately **not** inside the exe (they have no licence allowing redistribution), which
   is why the first start shows the setup screen.
 

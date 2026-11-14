@@ -3,8 +3,10 @@ before core.py (which needs the tools) is imported.
 
 APP_DIR  - the code and static/ (the .exe's bundle when packaged)
 DATA_DIR - everything the user creates: backups, cache, projects, exports, settings.
-           Same folder as the code when run from source; %LOCALAPPDATA%\\AvatarLegendsSkinEditor
-           for the .exe (its own folder may not be writable). Override: SKIN_EDITOR_DATA.
+           Same folder as the code when run from source; %LOCALAPPDATA%\\FrameBender for the
+           .exe (its own folder may not be writable). Override: SKIN_EDITOR_DATA.
+           The app used to be called "Avatar Legends Skin Editor": a data folder with that
+           name is renamed to FrameBender on the first start (nothing in it is changed).
 """
 import os
 import sys
@@ -20,7 +22,13 @@ APP_DIR = Path(getattr(sys, "_MEIPASS", None) or Path(__file__).resolve().parent
 if os.environ.get("SKIN_EDITOR_DATA"):
     DATA_DIR = Path(os.environ["SKIN_EDITOR_DATA"])
 elif FROZEN:
-    DATA_DIR = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "AvatarLegendsSkinEditor"
+    _base = Path(os.environ.get("LOCALAPPDATA") or Path.home())
+    DATA_DIR, _old = _base / "FrameBender", _base / "AvatarLegendsSkinEditor"
+    if _old.is_dir() and not DATA_DIR.exists():
+        try:
+            _old.rename(DATA_DIR)                      # a rename: backups, projects, settings all move as they are
+        except OSError:
+            DATA_DIR = _old                            # in use (an older copy is open): keep using it for now
 else:
     DATA_DIR = APP_DIR
 DATA_DIR.mkdir(parents=True, exist_ok=True)

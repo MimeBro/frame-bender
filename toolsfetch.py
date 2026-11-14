@@ -71,7 +71,7 @@ def find(folders):
 def missing_report(folders, download_dir):
     """A plain-language explanation of what is missing and how to fix it."""
     lines = [
-        "The editor needs avatar-legends-tools by calebrisc, and could not find it.",
+        "Frame Bender needs avatar-legends-tools by calebrisc, and could not find it.",
         "",
         "Missing files (looked for all of them in each folder below):",
         *[f"  - {name}  ({purpose})" for name, purpose in FILE_PURPOSE.items()],
@@ -83,7 +83,7 @@ def missing_report(folders, download_dir):
         f"  1. If you cloned this project with git, run:  git submodule update --init",
         f"  2. Download {REPO_URL} (Code > Download ZIP) and copy the four files above into:",
         f"       {download_dir}",
-        "  3. Start the editor with launcher.py or the .exe: its setup screen can download the four",
+        "  3. Start Frame Bender with launcher.py or the .exe: its setup screen can download the four",
         "     files for you when you click the button (nothing is downloaded before that).",
     ]
     return "\n".join(lines)
@@ -109,7 +109,7 @@ def ensure_tools(dest):
             continue
         url = source_url(name)
         try:
-            request = urllib.request.Request(url, headers={"User-Agent": "avatar-legends-skin-editor"})
+            request = urllib.request.Request(url, headers={"User-Agent": "frame-bender"})
             with urllib.request.urlopen(request, timeout=30) as response:
                 data = response.read(MAX_BYTES + 1)
         except (urllib.error.URLError, OSError) as err:
