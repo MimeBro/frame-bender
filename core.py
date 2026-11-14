@@ -733,7 +733,7 @@ class Workspace:
         width, height, image = unpack_tiles(info, tiles, atlas)
         out = (info["image_type"], width, height, image)
         with self._lock:
-            if len(self._materials) >= 48:
+            if len(self._materials) >= 96:
                 self._materials.pop(next(iter(self._materials)))
             self._materials[stem] = out
         return out

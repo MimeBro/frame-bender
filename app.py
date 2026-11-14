@@ -257,7 +257,8 @@ def export():
                                     str(body.get("move", "")),
                                     effects=bool(body.get("effects")), masks=bool(body.get("masks")),
                                     margin=int(body.get("margin") or 0),
-                                    base=base, palette=bool(body.get("palette")))
+                                    base=base, palette=bool(body.get("palette")),
+                                    full=bool(body.get("full")), slot=str(body.get("slot") or "") or None)
     _open(result["folder"])
     return jsonify(result)
 

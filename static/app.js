@@ -674,11 +674,12 @@ async function exportMove() {
           "the folder opens by itself when it is ready…");
   try {
     const r = await api("/api/export", { ...current, effects: $("expEffects").checked, masks: $("expMasks").checked,
-                                         margin: Number($("expSpace").value),
+                                         full: $("expSpace").value === "full",
+                                         slot: $("expColours").checked && pal.slot ? pal.slot : "",
                                          palette: withPalette });
     let text = `Exported ${plural(r.written, "PNG")} to ${r.folder}`;
     if (r.palette) text += `, plus ${r.palette} to pick colours from`;
-    if (r.canvas) text += `: character frames share one ${r.canvas[2]}×${r.canvas[3]} canvas with room to draw beyond the outline, your current edits included`;
+    if (r.canvas) text += `: each character frame sits on a ${r.canvas[2]}×${r.canvas[3]} canvas at its real spot, so you can draw beyond the outline`;
     if (r.kept) text += `. ${r.kept} already there were left untouched`;
     if (r.skipped_effects) text += `. ${plural(r.skipped_effects, "effect image")} not exported (tick “effects”)`;
     if (r.skipped_masks) text += `. ${plural(r.skipped_masks, "mask image")} not exported (tick “masks”)`;
@@ -1066,9 +1067,8 @@ function buildStrip() {
     b.tabIndex = -1;
     const box = el("span", "img");
     const img = el("img");
-    img.loading = "lazy";
     img.alt = "";
-    img.src = thumbUrl(f);
+    wantThumb(img, thumbUrl(f));
     box.append(img);
     b.append(box, el("span", "no", String(i + 1)));
     b.title = `${f.frame}${f.edit ? " · edited" : ""}\n${geo(f).w}×${geo(f).h}`;
@@ -1088,7 +1088,51 @@ function refreshStripThumbs() {
   for (const b of $("strip").children) {
     const f = player.frames.find((x) => x.name === b.dataset.name);
     const img = b.querySelector("img");
-    if (f && img) { const url = thumbUrl(f); if (img.getAttribute("src") !== url) img.src = url; }
+    if (f && img) wantThumb(img, thumbUrl(f));
+  }
+}
+
+// Thumbnails load two at a time and only for frames that are on screen in the strip, so a long move
+// never floods the server and holds up the stage's live preview. A frame scrolled into view later
+// loads then, with whatever colours are current.
+const thumbs = { queue: [], busy: 0, timer: null };
+function scanThumbs() {                       // which thumbnails are on screen (plus a little around)
+  const strip = $("strip"), box = strip.getBoundingClientRect();
+  for (const img of strip.querySelectorAll("img")) {
+    const r = img.getBoundingClientRect();
+    const vis = r.right > box.left - 200 && r.left < box.right + 200 && r.bottom > box.top - 200 && r.top < box.bottom + 200;
+    img.dataset.vis = vis ? "1" : "";
+    if (vis) queueThumb(img);
+  }
+}
+function scanThumbsSoon() {
+  clearTimeout(thumbs.timer);
+  thumbs.timer = setTimeout(scanThumbs, 80);
+}
+function wantThumb(img, url) {
+  img.dataset.want = url;
+  scanThumbsSoon();
+}
+function queueThumb(img) {
+  if (!img.dataset.loading && !thumbs.queue.includes(img)) thumbs.queue.push(img);   // in flight: done() re-queues
+  pumpThumbs();
+}
+function pumpThumbs() {
+  while (thumbs.busy < 2 && thumbs.queue.length) {
+    const img = thumbs.queue.shift();
+    const url = img.dataset.want;
+    if (!url || !img.isConnected || img.getAttribute("src") === url) continue;
+    thumbs.busy++;
+    img.dataset.loading = "1";
+    const done = () => {
+      img.onload = img.onerror = null;
+      img.dataset.loading = "";
+      thumbs.busy--;
+      if (img.dataset.want !== url && img.dataset.vis === "1" && !thumbs.queue.includes(img)) thumbs.queue.push(img);   // colours changed meanwhile
+      pumpThumbs();
+    };
+    img.onload = img.onerror = done;
+    img.src = url;
   }
 }
 
@@ -2091,7 +2135,12 @@ $("charSearch").onkeydown = (e) => {
   if (e.key === "ArrowDown") { e.preventDefault(); const first = $("charList").querySelector(".charitem"); if (first) first.focus(); }
 };
 $("gameMenuBtn").onclick = () => togglePopover("gameMenu", "gameMenuBtn");
-$("exportOptsBtn").onclick = () => togglePopover("exportPop", "exportOptsBtn");
+$("exportOptsBtn").onclick = () => {
+  $("expColoursText").textContent = pal.slot ? `Use my current colours (${pal.slot})` : "Use my current colours (pick a costume slot first)";
+  $("expColours").disabled = !pal.slot;
+  if (!pal.slot) $("expColours").checked = false;
+  togglePopover("exportPop", "exportOptsBtn");
+};
 $("shareBtn").onclick = openShare;
 $("shareGo").onclick = createPack;
 $("shareClose").onclick = () => $("shareDlg").close();
@@ -2105,6 +2154,8 @@ $("rebuildBtn").onclick = rebuildCheck;
 $("noticeBtn").onclick = showNoticeAgain;
 $("installBtn").onclick = installMod;
 $("restoreBtn").onclick = restoreOriginal;
+$("strip").addEventListener("scroll", scanThumbsSoon, { passive: true });
+window.addEventListener("resize", scanThumbsSoon);
 $("exportBtn").onclick = exportClicked;
 $("exportHelpBtn").onclick = openExportDlg;
 $("expGo").onclick = exportFromDlg;

@@ -122,8 +122,9 @@
             <div id="exportPop" class="popover up" hidden>
               <label class="chk"><input id="expEffects" type="checkbox"> Include effects</label>
               <label class="chk" title="Advanced: masks keep their data in the RGB channels, so the PNG can look empty"><input id="expMasks" type="checkbox"> Include masks (advanced)</label>
-              <label class="field" title="Put all the character frames on one shared canvas with room around them (for hair, hats, wigs)">Extra space around the frames
-                <select id="expSpace"><option value="0">none</option><option value="128">128 px</option><option value="256">256 px</option><option value="512">512 px</option></select></label>
+              <label class="field" title="As it is: each PNG is just the frame. Full screen: each PNG is the game's whole 3840×2160 screen with the frame at its real spot, so you can draw anywhere around it (hair, hats, wings).">Frame size
+                <select id="expSpace"><option value="0">As it is</option><option value="full">Full screen (3840×2160)</option></select></label>
+              <label id="expColoursWrap" class="chk" title="Draw the exported frames with the colours of the costume slot picked in the Palette panel, your colour edits included. Without it they use the default costume."><input id="expColours" type="checkbox"> <span id="expColoursText">Use my current colours</span></label>
             </div>
           </div>
         </div>

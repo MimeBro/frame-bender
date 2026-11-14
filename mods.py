@@ -117,8 +117,8 @@ def _candidates(palette, rows, fringe):
     return out
 
 
-def snap_candidates(ws, stem):
-    """(own, others): the colors the default costume palette can show for one frame.
+def snap_candidates(ws, stem, palette=None):
+    """(own, others): the colors a palette (default: the default costume's) can show for one frame.
 
     'own' are the palette rows the ORIGINAL frame already uses (plus the bare outline),
     'others' every other row the character uses. Keeping pixels on the frame's own rows
@@ -131,7 +131,7 @@ def snap_candidates(ws, stem):
         own = [r for r in sf.rows_used([ws.frame_path(stem)], 1) if 0 < r < 64]
     except (ValueError, OSError):
         own = []
-    palette = ws.default_palette["palette"]
+    palette = palette or ws.default_palette["palette"]
     return (_candidates(palette, own, True),
             _candidates(palette, [r for r in rows if r not in own], False))
 
@@ -328,6 +328,11 @@ def project_summary(name, char):
         return 0, 0
 
 
+SMALL_BOX = 256                 # thumbnails are recoloured at this size, then smoothed down to 192
+_small_materials = {}           # (cache folder, frame, edit hash) -> (type, w, h, shrunken material)
+_small_lock = threading.Lock()
+
+
 class Project:
     def __init__(self, name, char):
         if not isinstance(name, str) or not PROJECT_RE.fullmatch(name):
@@ -384,10 +389,16 @@ class Project:
                 store[stem] = (known + [list(box)])[-6:]
             self._save(data)
 
-    def _current_look(self, ws, stem):
-        """(RGBA bytes, x, y, w, h) of a character frame as this mod shows it now."""
+    def _current_look(self, ws, stem, slot=None):
+        """(RGBA bytes, x, y, w, h) of a character frame as this mod shows it now.
+
+        slot: draw it with that costume slot's colours, palette edits included."""
         from PIL import Image
         info = ws.frame_info(stem)
+        if slot:
+            crop = (self.edits().get(stem) or {}).get("crop") or [info["x"], info["y"], info["w"], info["h"]]
+            with Image.open(io.BytesIO(self.render(ws, stem, slot))) as im:
+                return im.convert("RGBA").tobytes(), crop[0], crop[1], im.size[0], im.size[1]
         if stem in self.edits():
             self.ensure_built(ws, stem)
             crop = self.edits()[stem].get("crop") or [info["x"], info["y"], info["w"], info["h"]]
@@ -397,7 +408,7 @@ class Project:
             return im.convert("RGBA").tobytes(), info["x"], info["y"], info["w"], info["h"]
 
     def export_move(self, ws, category, move, effects=False, masks=False, margin=0,
-                    base=None, palette=False):
+                    base=None, palette=False, full=False, slot=None):
         """Write the move's frames as PNGs. Never overwrites existing files.
 
         base: a folder the user chose (already checked with check_export_folder); the move's
@@ -413,14 +424,30 @@ class Project:
         position, so the frames line up as layers and there is room to draw beyond the
         original outline (hair, hats, wigs). The project's current edits are included. The
         editor remembers the canvas, so the PNGs can be dropped back as they are.
+
+        full=True: each character frame is placed on the game's whole 3840x2160 screen canvas
+        at its real position (the same as margin, but the box is the entire canvas).
+
+        slot: draw the frames (and the palette PNG) with that costume slot's colours, palette
+        edits included, instead of the default costume's. The colour set is remembered so the
+        PNGs snap back correctly when dropped. Ignored when the slot looks like the default.
         """
         from PIL import Image
         groups = ws.tree.get(category, {}).get(move)
         if groups is None:
             raise EditorError(f"unknown move {category}/{move}")
         margin = max(0, min(1024, int(margin or 0)))
-        folder = (Path(base) if base else self.work_dir) / (
-            f"{category}~{move}" + (f"~space{margin}" if margin else ""))
+        table = diff = None
+        if slot:
+            if slot not in ws.costume:
+                raise EditorError(f"unknown costume palette: {slot}")
+            diff = self._diff_from_default(ws, slot)
+            if diff:
+                table = self._table_with(ws, diff)
+            else:
+                slot = None                  # same colours as the default: nothing special to remember
+        suffix = ("~fullscreen" if full else f"~space{margin}" if margin else "") + (f"~{slot}" if slot else "")
+        folder = (Path(base) if base else self.work_dir) / f"{category}~{move}{suffix}"
         try:
             folder.mkdir(parents=True, exist_ok=True)
         except OSError as err:
@@ -428,15 +455,18 @@ class Project:
                               "Choose another export folder (the ? next to Export move).") from err
         stems = [s for names in groups.values() for s in names]
         box = None
-        if margin:
-            looks = {}
+        looks = {}
+        if margin or full or slot:
             for stem in stems:
                 try:
                     if ws.frame_info(stem)["type"] == 3 and not ws.frames[stem]["mask"]:
-                        looks[stem] = self._current_look(ws, stem)
+                        looks[stem] = self._current_look(ws, stem, slot)
                 except (ValueError, OSError):
                     pass
-            if looks:
+            if looks and full:
+                info = ws.frame_info(next(iter(looks)))
+                box = (0, 0, info["canvas_w"], info["canvas_h"])
+            elif looks and margin:
                 info = ws.frame_info(next(iter(looks)))
                 x0 = max(0, min(l[1] for l in looks.values()) - margin)
                 y0 = max(0, min(l[2] for l in looks.values()) - margin)
@@ -468,6 +498,9 @@ class Project:
                     page.paste(Image.frombytes("RGBA", (w, h), rgba), (x - box[0], y - box[1]))
                     page.save(target)
                     boxes[stem] = box
+                elif slot and kind == 3 and stem in looks:      # own size, recoloured
+                    rgba, x, y, w, h = looks[stem]
+                    Image.frombytes("RGBA", (w, h), rgba).save(target)
                 else:
                     shutil.copyfile(ws.png_file(stem), target)
                 written += 1
@@ -475,14 +508,16 @@ class Project:
                 failed += 1
         if boxes:
             self._remember_layouts(boxes)
+        if diff and written:
+            self._remember_export_palette(diff)
         palette_file = None
         if palette and ws.default_palette is not None:
             try:
                 first = move_rows(ws, category, move)
             except EditorError:
                 first = []
-            target = folder / f"palette_{ws.default_palette['name']}.png"
-            target.write_bytes(palette_png(ws, first))      # ours to rewrite: never a painting
+            target = folder / f"palette_{slot or ws.default_palette['name']}.png"
+            target.write_bytes(palette_png(ws, first, table))      # ours to rewrite: never a painting
             palette_file = target.name
         return {"folder": str(folder), "written": written, "kept": kept, "palette": palette_file,
                 "skipped_effects": skipped_effects, "skipped_masks": skipped_masks,
@@ -514,6 +549,69 @@ class Project:
         raise EditorError(f"wrong canvas size: your PNG is {size[0]}×{size[1]}. This frame accepts "
                           + ", ".join(sizes) + ". Keep the size of the exported PNG.")
 
+    # -- exports drawn with edited colours
+    def _export_palettes(self):
+        """Colour sets earlier exports were drawn with: [{"row.col": [r, g, b]}] vs the default."""
+        raw = self.manifest().get("export_palettes", [])
+        out = []
+        for item in raw if isinstance(raw, list) else []:
+            if isinstance(item, dict):
+                out.append(item)
+        return out
+
+    def _table_with(self, ws, diff):
+        table = [[list(cell) for cell in row] for row in ws.default_palette["palette"]]
+        for key, rgb in diff.items():
+            try:
+                row, col = (int(v) for v in str(key).split("."))
+                if 0 <= row < 64 and 0 <= col < 3 and len(rgb) == 3:
+                    table[row][col][:3] = [max(0, min(255, int(v))) for v in rgb]
+            except (ValueError, TypeError):
+                continue
+        return table
+
+    def _diff_from_default(self, ws, slot):
+        """{"row.col": rgb} where this slot (with the project's edits) differs from the default."""
+        table = self.palette_table(ws, slot)
+        base = ws.default_palette["palette"]
+        return {f"{r}.{c}": list(table[r][c][:3]) for r in range(64) for c in range(3)
+                if list(table[r][c][:3]) != list(base[r][c][:3])}
+
+    def _remember_export_palette(self, diff):
+        with _project_lock:
+            data = self.manifest()
+            known = [d for d in data.get("export_palettes", []) if d != diff]
+            data["export_palettes"] = (known + [diff])[-8:]
+            self._save(data)
+
+    def _palette_of_export(self, ws, region, base, rw, rh):
+        """The palette a dropped PNG was most likely drawn with.
+
+        The default costume, or one of the colour sets earlier exports used. Pixels the artist
+        did not touch still equal the game's own pixel drawn with that palette, so the palette
+        that reproduces most of them is the one. Ties go to the default.
+        """
+        from PIL import Image, ImageChops
+        default = ws.default_palette["palette"]
+        extra = self._export_palettes()
+        if not extra:
+            return default
+        painted = Image.frombytes("RGBA", (rw, rh), region)
+
+        def matches(table):
+            shown = Image.frombytes("RGBA", (rw, rh), core.render_material(base, table))
+            r, g, b, a = ImageChops.difference(painted, shown).split()
+            worst = ImageChops.lighter(ImageChops.lighter(r, g), ImageChops.lighter(b, a))
+            return sum(worst.histogram()[:SAME_TOLERANCE + 1])
+
+        best, score = default, matches(default)
+        for diff in reversed(extra):
+            table = self._table_with(ws, diff)
+            s = matches(table)
+            if s > score:
+                best, score = table, s
+        return best
+
     def _snap_type3(self, ws, stem, im, box):
         """Snap a character frame painted on any accepted canvas. The frame grows when you
         painted outside its original rectangle; otherwise it keeps its exact position."""
@@ -538,8 +636,8 @@ class Project:
             d = ((oy + row) * rw + ox) * 4
             base[d:d + cw * 4] = original[row * cw * 4:(row + 1) * cw * 4]
         base = bytes(base)
-        palette = ws.default_palette["palette"]
-        own, others = snap_candidates(ws, stem)
+        palette = self._palette_of_export(ws, region, base, rw, rh)
+        own, others = snap_candidates(ws, stem, palette)
         material, mean_error, poor, extra = snap(
             region, own, others, base, core.render_material(base, palette),
             apply_palette(base, palette), rw, rh)
@@ -858,13 +956,30 @@ class Project:
         thumb=True shrinks it to fit 192x192, like the cached timeline thumbnails.
         """
         from PIL import Image
-        if stem in self.edits():               # show the user's replaced frame, not the original
+        edit = self.edits().get(stem)
+        key = small = None
+        if thumb and not rows:                 # thumbnails: recolour a shrunken copy (much less work)
+            key = (str(ws.root), stem, edit.get("png_sha256") if edit else None)
+            with _small_lock:
+                small = _small_materials.get(key)
+        if small:
+            image_type, width, height, image = small
+        elif edit:                             # show the user's replaced frame, not the original
             info, tiles, chunks = read_munged(self.ensure_built(ws, stem))
             atlas = b"".join(decompress_lz4(data, size) for size, data in chunks)
             width, height, image = unpack_tiles(info, tiles, atlas)
             image_type = info["image_type"]
         else:
             image_type, width, height, image = ws.material(stem)
+        if key and not small and image_type == 3:
+            tiny = Image.frombytes("RGBA", (width, height), bytes(image))
+            tiny.thumbnail((SMALL_BOX, SMALL_BOX), Image.NEAREST)   # material bytes must not be blended
+            width, height = tiny.size
+            image = tiny.tobytes()
+            with _small_lock:
+                if len(_small_materials) >= 400:
+                    _small_materials.pop(next(iter(_small_materials)))
+                _small_materials[key] = (image_type, width, height, image)
         if image_type == 3:
             draw = core.row_map if rows else core.render_material
             table = self.palette_table(ws, palette_name)
@@ -881,7 +996,7 @@ class Project:
         return buf.getvalue()
 
 
-def palette_png(ws, first_rows=()):
+def palette_png(ws, first_rows=(), table=None):
     """PNG bytes: every colour a painted character frame may use, as big pickable swatches.
 
     Uses the DEFAULT costume's original colours, because that is what exported frames are
@@ -891,7 +1006,7 @@ def palette_png(ws, first_rows=()):
     base, light); the rows in first_rows (the exported move's) come first, then the rest.
     """
     from PIL import Image, ImageDraw
-    palette = ws.default_palette["palette"]
+    palette = table or ws.default_palette["palette"]      # table: a recoloured costume (see export_move)
     lines = {}
     for row in allowed_rows(ws):
         cells = [core.render_material(bytes((row, 255, blue, 255)), palette) for blue in sf.SHADES]

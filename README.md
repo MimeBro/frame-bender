@@ -132,8 +132,10 @@ them. If you cloned without it, run `git submodule update --init`.
 3. Drag the PNGs onto the Frame Bender window, as many as you like. You get a before / after for each.
 4. **Build & install**, test in Training mode, then **Restore original**.
 
-Need room for a hat or bigger hair? Click the small arrow next to Export move and choose **extra space** before
-exporting.
+Need room for a hat or bigger hair? Click the small arrow next to Export move and set **Frame size** to
+**Full screen**: every PNG becomes the game's whole 3840×2160 screen with the frame at its real spot, so you can
+draw anywhere around it. Tick **Use my current colours** there to get the frames drawn with the costume slot
+you are editing in the Palette panel (your colour changes included) instead of the default costume.
 
 ### How colours work
 
@@ -168,7 +170,7 @@ Every part of a character uses a **palette row**: skin is one row, the robe anot
 | Install or Restore says the file is in use | the game is running | close the game, then try again |
 | Install or Restore refuses: the game file is not the backup or your mod | a game update changed the file | **Scan game folder… → Update backup** (in the "…" menu), then install again |
 | "No verified backup" | that character was never backed up, or the backup changed | verify the game files in Steam, then **Scan game folder… → Back up** |
-| A dropped PNG is rejected for its size | the canvas size changed | export again and keep the size, or use an *extra space* export |
+| A dropped PNG is rejected for its size | the canvas size changed | export again and keep the size, or use a *Full screen* export |
 | A dropped PNG names another character | the file belongs to another character | switch to the character the message names |
 | Many "far from the palette" pixels | you painted with colours the costume cannot show | pick colours from the exported palette image |
 | The mod is gone after a game update | updates replace the game's files | **Scan game folder…**, update the backup, **Build & install** again |
@@ -261,10 +263,9 @@ update. Nothing is written to the game folder except by **Build & install** and 
 - The editor itself (move browser, stage view, palette editor, fitting painted frames to the palette, backups,
   install / restore, skin packs) is by the maintainer of this repository.
 
-## About AI
+## Safety checks
 
-This project was developed with the assistance of an AI coding assistant (Claude). To make that trustworthy rather
-than a leap of faith:
+You don't have to take the app on trust:
 
 - The app proves its own basics: **Test rebuild** (in the "…" menu) rebuilds a character with no edits and
   checks the result is byte-for-byte the original file, and that writing the palettes back unchanged is identical.
