@@ -27,7 +27,7 @@ async function api(path, body) {
     headers: { "Content-Type": "application/json", "X-Skin-Editor": "1" },
     body: JSON.stringify({ char: state.char, ...body }),
   };
-  const res = await fetch(body === undefined && state.char ? withChar(path) : path, opt);
+  const res = await fetch(body === undefined && state.char && !/[?&]char=/.test(path) ? withChar(path) : path, opt);
   let data = null;
   try { data = await res.json(); } catch (e) { /* not JSON */ }
   if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status})`);
@@ -115,6 +115,14 @@ const CATEGORY_LABELS = {
   specials: "Specials", throws: "Throws", idle: "Idle", walk: "Walk", jump: "Jump", dash: "Dash",
   blocking: "Blocking", hud: "Interface art", "(other)": "Other",
 };
+// Names as the game shows them; anything not listed gets its file name with capitals.
+const CHAR_NAMES = {
+  aang_avchar: "Avatar Aang", korra_nightmare: "Nightmare Korra", korra_nightmare_boss: "Nightmare Korra (boss)",
+  kyoshi_boss: "Kyoshi (boss)", ozai_boss: "Ozai (boss)", azula_super: "Azula (super)", sokka_super: "Sokka (super)",
+  cabbageguy: "Cabbage Merchant", wanshitong: "Wan Shi Tong",
+};
+const charLabel = (name) => CHAR_NAMES[name] ||
+  String(name).split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 const catLabel = (name) => CATEGORY_LABELS[name] || name.replace(/_/g, " ");
 const typing = (e) => /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable;
 // a field with its own text undo (Ctrl+Z belongs to it)
@@ -153,7 +161,7 @@ async function loadCharacters() {
   const data = await api("/api/characters");
   state.chars = data.characters;
   renderCharList();
-  const installed = data.characters.filter((c) => c.installed).map((c) => c.name);
+  updateGameButtons();
   return data;
 }
 
@@ -161,13 +169,14 @@ function renderCharList() {
   const q = $("charSearch").value.trim().toLowerCase();
   const list = $("charList");
   list.textContent = "";
-  const hits = state.chars.filter((c) => !q || c.name.includes(q));
+  const hits = state.chars.filter((c) => !q || c.name.includes(q) || charLabel(c.name).toLowerCase().includes(q));
   const mains = hits.filter((c) => c.main), more = hits.filter((c) => !c.main);
   const add = (c) => {
     const b = el("button", "charitem");
     b.setAttribute("role", "option");
     b.setAttribute("aria-selected", String(c.name === state.char));
-    b.append(el("span", null, c.name));
+    b.append(el("span", null, charLabel(c.name)));
+    b.title = `${c.name}.pak`;
     if (c.edits || c.colors) {
       const d = el("span", "edits");
       d.title = `${plural(c.edits, "edited frame")}, ${plural(c.colors, "changed colour")}`;
@@ -195,13 +204,13 @@ async function selectChar(name) {
   pal.slot = ""; pal.rows = pal.original = null; pal.used = [];
   sel.strip.clear(); sel.edited.clear();
   closeSwatchEditor();
-  $("charName").textContent = name;
+  $("charName").textContent = charLabel(name);
   renderCharList();
   $("tree").textContent = "";
   $("moveView").hidden = $("editedView").hidden = true;
   $("results").hidden = true;
   $("empty").hidden = false;
-  $("empty").textContent = `Checking ${name}…`;
+  $("empty").textContent = `Checking ${charLabel(name)}…`;
   $("browser").hidden = false;
   showMsg("");
   try {
@@ -212,14 +221,14 @@ async function selectChar(name) {
       return;
     }
     if (!s.cache_ready) {
-      const note = el("span", null, `Unpacking ${name} for the first time…`);
+      const note = el("span", null, `Unpacking ${charLabel(name)} for the first time…`);
       const bar = el("div", "bar busy");
       bar.append(el("i"));
       $("empty").textContent = "";
       $("empty").append(note, bar);
       const watch = watchProgress(name, (pr) => {
         if (gen !== state.gen || !pr) return;
-        note.textContent = `Unpacking ${name} for the first time: ${stepText(pr)}`;
+        note.textContent = `Unpacking ${charLabel(name)} for the first time: ${stepText(pr)}`;
         setBar(bar, stepShare(pr));
       });
       try { await api("/api/setup", {}); } finally { watch.stop(); }
@@ -240,13 +249,13 @@ async function refreshStatus() {
   const s = await api("/api/status");
   if (s.character !== state.char) return s;
   state.status = s;
-  const box = $("gameStatus");
+  const box = $("gameStatus"), who = charLabel(s.character);
   const looks = {
-    original: ["original", `${s.character}: original in game`],
-    modded: ["modded", `${s.character}: your mod in game`],
-    changed: ["changed", `${s.character}: game pak changed`],
-    missing: ["missing", `${s.character}: pak not found`],
-    unknown: ["missing", `${s.character}: unknown pak`],
+    original: ["original", `${who}: original in game`],
+    modded: ["modded", `${who}: your mod in game`],
+    changed: ["changed", `${who}: game pak changed`],
+    missing: ["missing", `${who}: pak not found`],
+    unknown: ["missing", `${who}: unknown pak`],
   };
   const [cls, main] = looks[s.game_pak] || looks.unknown;
   box.className = "status " + (s.backup_ok ? cls : "nobackup");
@@ -258,12 +267,8 @@ async function refreshStatus() {
   const total = s.edits + colors;
   $("editedCount").textContent = total;
   $("editedNavCount").textContent = total;
-  $("editedBtn").title = `${s.character} in project ${s.project}: ${plural(s.edits, "edited frame")}, ${plural(colors, "changed colour")}`;
-  $("installBtn").disabled = !s.backup_ok || !total || s.game_pak === "changed";
-  $("installBtn").title = s.game_pak === "changed"
-    ? "The game's pak changed (game update?). Use Scan game folder first."
-    : "Build this character's pak with your edits and copy it into the game folder";
-  $("restoreBtn").disabled = !s.backup_ok || s.game_pak === "original" || s.game_pak === "changed";
+  $("editedBtn").title = `${who} in project ${s.project}: ${plural(s.edits, "edited frame")}, ${plural(colors, "changed colour")}`;
+  updateGameButtons();
   return s;
 }
 
@@ -495,40 +500,62 @@ async function backUp(list) {
 
 // ---------------------------------------------------------------- sharing: skin packs
 
-function openShare() {
-  const frames = edited.frames.length;
-  const colors = edited.palettes.reduce((n, p) => n + p.colors, 0);
-  $("shareSummary").textContent = `${state.char}: ${plural(frames, "edited frame")} and ${plural(colors, "changed colour")} in this project.`;
-  if (!$("shareName").value) $("shareName").value = `${state.char} skin`;
+async function openShare() {
+  try { await loadCharacters(); } catch (e) { showMsg(e.message, "bad"); return; }
+  const cands = currentFirst(state.chars.filter((c) => c.edits || c.colors));
+  const list = $("shareChars");
+  const update = () => {
+    const n = tickedIn(list).length;
+    $("shareGo").disabled = !n;
+    $("shareGo").textContent = n > 1 ? `Create ${n} skin packs` : "Create skin pack";
+  };
+  list.textContent = "";
+  for (const c of cands) list.append(pickRow({ name: c.name, detail: editCounts(c), checked: c.name === state.char || cands.length === 1 }, update));
+  $("shareSummary").textContent = !cands.length ? ""
+    : cands.length > 1 ? "Tick the characters to share. Each one gets its own zip, named after the skin and the character."
+    : "Edits in this project:";
+  if (!$("shareName").value) $("shareName").value = `${charLabel(state.char)} skin`;
   if (!$("shareAuthor").value) $("shareAuthor").value = store.get("skin-editor-author") || "";
-  $("shareResult").textContent = "";
-  $("shareGo").disabled = !(frames || colors);
-  if (!(frames || colors)) $("shareResult").textContent = "Nothing to share yet: edit some frames or colours first.";
+  $("shareResult").textContent = cands.length ? "" : "Nothing to share yet: edit some frames or colours first.";
+  update();
   if (!$("shareDlg").open) $("shareDlg").showModal();
 }
 
 async function createPack() {
+  const picked = tickedIn($("shareChars"));
+  if (!picked.length) return;
   $("shareGo").disabled = true;
-  $("shareResult").textContent = "Creating…";
-  try {
-    store.set("skin-editor-author", $("shareAuthor").value);
-    const r = await api("/api/skin/export", {
-      name: $("shareName").value, author: $("shareAuthor").value, description: $("shareDesc").value,
-      frames: $("shareFrames").checked, palettes: $("shareColors").checked,
-    });
-    const box = $("shareResult");
-    box.textContent = "";
-    box.append(el("div", "ok", `Created ${plural(r.frames, "frame")} + ${plural(r.colors, "colour")} (${(r.size / 1024).toFixed(0)} KB):`),
-               el("div", null, r.path));
-    const open = el("button", "tb", "Open exports folder");
-    open.onclick = () => openFolder("exports");
+  const box = $("shareResult");
+  box.textContent = "Creating…";
+  store.set("skin-editor-author", $("shareAuthor").value);
+  const made = [], failed = [];
+  for (const [i, name] of picked.entries()) {
+    try {
+      const r = await api("/api/skin/export", {
+        char: name, name: $("shareName").value, author: $("shareAuthor").value, description: $("shareDesc").value,
+        frames: $("shareFrames").checked, palettes: $("shareColors").checked,
+        reveal: i === picked.length - 1,              // one Explorer window, not one per pack
+      });
+      made.push({ name, r });
+    } catch (e) {
+      failed.push(`${charLabel(name)}: ${e.message}`);
+    }
+  }
+  box.textContent = "";
+  for (const { name, r } of made) {
     const file = r.path.split(/[\\/]/).pop();
+    const line = el("div", "ok", `${charLabel(name)}: ${plural(r.frames, "frame")} + ${plural(r.colors, "colour")} (${(r.size / 1024).toFixed(0)} KB) `);
     const dl = el("a", "dl", "Download");
     dl.href = "/api/skin/download?name=" + encodeURIComponent(file);
     dl.download = file;
-    box.append(open, dl);
-  } catch (e) {
-    $("shareResult").textContent = e.message;
+    line.append(dl);
+    box.append(line, el("div", null, r.path));
+  }
+  for (const f of failed) box.append(el("div", "bad", f));
+  if (made.length) {
+    const open = el("button", "tb", "Open exports folder");
+    open.onclick = () => openFolder("exports");
+    box.append(open);
   }
   $("shareGo").disabled = false;
 }
@@ -562,7 +589,7 @@ async function importFile(file) {
       await selectChar(report.character);
       return importFile(file);
     }
-    showMsg(`This skin is for ${report.character}, which is not backed up here yet. Open the “…” menu, choose Scan game folder and back it up, then import again.`, "bad");
+    showMsg(`This skin is for ${charLabel(report.character)}, which is not backed up here yet. Open the “…” menu, choose Scan game folder and back it up, then import again.`, "bad");
     return;
   }
   showMsg("");
@@ -580,7 +607,7 @@ function renderImport(r) {
   if (r.preview) { const img = el("img"); img.src = r.preview; img.alt = ""; head.append(img); }
   const meta = el("div");
   meta.append(el("strong", null, r.name));
-  meta.append(el("div", "muted", `for ${r.character}` + (r.author ? ` · by ${r.author}` : "") + (r.created ? ` · ${r.created}` : "")));
+  meta.append(el("div", "muted", `for ${charLabel(r.character)}` + (r.author ? ` · by ${r.author}` : "") + (r.created ? ` · ${r.created}` : "")));
   if (r.description) meta.append(el("div", null, r.description));
   head.append(meta);
   wrap.append(head);
@@ -705,42 +732,170 @@ async function showNoticeAgain() {
   }
 }
 
+// One row of a character tick list (Build & install, Restore original, Share).
+// row: { name, detail, tag, off: "why it cannot be ticked", checked }
+function pickRow(row, onChange) {
+  const lab = el("label", "pickrow" + (row.off ? " off" : ""));
+  const box = el("input");
+  box.type = "checkbox";
+  box.value = row.name;
+  box.checked = !row.off && !!row.checked;
+  box.disabled = !!row.off;
+  box.onchange = onChange;
+  lab.append(box, el("b", null, charLabel(row.name)), el("small", null, row.off || row.detail || ""));
+  if (row.tag && !row.off) lab.append(el("span", "tag", row.tag));
+  return lab;
+}
+const tickedIn = (list) => [...list.querySelectorAll("input:checked")].map((x) => x.value);
+
+// The tick list dialog. okLabel(n) names the button for n ticked characters; check: { label }
+// adds a tick box (state afterwards in askChecked). Resolves to the ticked names, or null.
+function pickChars({ title, lead, note, rows, okLabel, danger, check }) {
+  return new Promise((resolve) => {
+    const dlg = $("pickDlg"), list = $("pickList");
+    $("pickTitle").textContent = title;
+    $("pickLead").textContent = lead;
+    $("pickNote").textContent = note || "";
+    $("pickNote").hidden = !note;
+    $("pickCheckWrap").hidden = !check;
+    $("pickCheck").checked = false;
+    if (check) $("pickCheckText").textContent = check.label;
+    $("pickOk").className = "tb " + (danger ? "danger" : "primary");
+    const can = rows.filter((r) => !r.off).length;
+    const update = () => {
+      const n = tickedIn(list).length;
+      $("pickOk").textContent = okLabel(n);
+      $("pickOk").disabled = !n;
+      $("pickCount").textContent = rows.length > 1 ? `${n} of ${rows.length} ticked` : "";
+      $("pickAll").textContent = n === can ? "Untick all" : "Tick all";
+    };
+    list.textContent = "";
+    for (const row of rows) list.append(pickRow(row, update));
+    $("pickAll").hidden = can < 2;
+    $("pickAll").onclick = () => {
+      const all = tickedIn(list).length === can;
+      for (const x of list.querySelectorAll("input:not(:disabled)")) x.checked = !all;
+      update();
+    };
+    update();
+    const done = (answer) => {
+      askChecked = !!check && $("pickCheck").checked;
+      $("pickOk").onclick = $("pickCancel").onclick = dlg.oncancel = null;
+      dlg.close();
+      resolve(answer ? tickedIn(list) : null);
+    };
+    $("pickOk").onclick = () => done(true);
+    $("pickCancel").onclick = () => done(false);
+    dlg.oncancel = (e) => { e.preventDefault(); done(false); };
+    dlg.showModal();
+    $("pickCancel").focus();
+  });
+}
+
+const currentFirst = (list) => [...list].sort((x, y) => (y.name === state.char) - (x.name === state.char));
+const editCounts = (c) => `${plural(c.edits, "edited frame")}, ${plural(c.colors, "changed colour")}`;
+const listed = (items) => items.length < 2 ? items.join("") : items.slice(0, -1).join(", ") + " and " + items[items.length - 1];
+
+function updateGameButtons() {
+  const s = state.status;
+  if (!s) return;
+  const edits = state.chars.some((c) => c.edits || c.colors) || s.edits + (s.colors || 0) > 0;
+  $("installBtn").disabled = !edits;
+  $("installBtn").title = edits
+    ? "Choose which edited characters to build and copy into the game folder"
+    : "Nothing to install yet: edit a frame or a colour first";
+  const here = s.backup_ok && s.game_pak !== "original" && s.game_pak !== "changed";
+  $("restoreBtn").disabled = !(here || state.chars.some((c) => c.installed));
+  $("restoreBtn").title = "Choose which characters get their original file back";
+}
+
 async function installMod() {
-  const s = state.status || {};
-  const colors = s.colors || 0;
-  await loadSettings();
+  let stats;
+  try {
+    await Promise.all([loadSettings(), loadCharacters()]);
+    const cands = currentFirst(state.chars.filter((c) => c.edits || c.colors));
+    stats = await Promise.all(cands.map(async (c) => ({ c, s: await api("/api/status?char=" + encodeURIComponent(c.name)) })));
+  } catch (e) {
+    showMsg(e.message, "bad");
+    return;
+  }
+  if (!stats.length) { showMsg("Nothing to install yet: edit a frame or a colour first."); return; }
+  const rows = stats.map(({ c, s }) => ({
+    name: c.name, detail: editCounts(c), checked: c.name === state.char || stats.length === 1,
+    tag: s.game_pak === "modded" ? "in the game now" : "",
+    off: !s.backup_ok ? "no verified backup, so it cannot be installed"
+      : s.game_pak === "changed" ? "the game's file changed (game update?): use Scan game folder first"
+      : s.game_pak === "missing" ? "its file is not in the game folder" : "",
+  }));
   const notice = !settings.hide_install_notice;
-  if (!await ask(`Build ${state.char}.pak with your edits and put it in the game folder?\n\n` +
-                 `${plural(s.edits || 0, "edited frame")}, ${plural(colors, "changed colour")}. Your verified backup stays untouched, ` +
-                 "and Restore original puts it back at any time.\n\nClose the game first." +
-                 (notice ? "\n\n" + MOD_NOTICE : ""),
-                 "Build & install", true, notice ? { label: "Don't remind me again" } : null)) return;
+  const picked = await pickChars({
+    title: "Build & install",
+    lead: (rows.length > 1
+      ? "Tick the characters to install. Each ticked character's file is rebuilt with your edits and copied into the game folder; the others are left as they are."
+      : "This character's file is rebuilt with your edits and copied into the game folder.") +
+      "\n\nYour verified backups stay untouched, and Restore original puts the stock files back at any time. Close the game first.",
+    note: notice ? MOD_NOTICE : "",
+    rows, danger: true,
+    okLabel: (n) => n > 1 ? `Build & install ${n} characters` : "Build & install",
+    check: notice ? { label: "Don't remind me again" } : null,
+  });
+  if (!picked) return;
   if (notice && askChecked) {
     try { settings = await api("/api/settings", { hide_install_notice: true }); updateNoticeMenu(); } catch (e) { /* shown again next time */ }
   }
   $("installBtn").disabled = true;
-  showMsg("Building and installing…");
-  try {
-    const r = await api("/api/install", {});
-    showMsg(`Installed ${state.char}: ${plural(r.edits, "edited frame")}, ${plural(r.colors, "changed colour")}. ` +
-            (r.skipped ? `${plural(r.skipped, "edited frame")} no longer in the game were skipped. ` : "") +
-            "Test it in Training mode, and use Restore original when you want the stock look back.", "ok", true);
-  } catch (e) {
-    showMsg(e.message, "bad");
+  const done = [], failed = [];
+  let skipped = 0;
+  for (const [i, name] of picked.entries()) {
+    showMsg(`Building and installing ${charLabel(name)}${picked.length > 1 ? ` (${i + 1} of ${picked.length})` : ""}…`);
+    try {
+      const r = await api("/api/install", { char: name });
+      done.push(`${charLabel(name)} (${plural(r.edits, "edited frame")}, ${plural(r.colors, "changed colour")})`);
+      skipped += r.skipped || 0;
+    } catch (e) {
+      failed.push(`${charLabel(name)} was not installed: ${e.message}`);
+    }
   }
+  showMsg((done.length ? `Installed ${listed(done)}. ` : "") +
+          (skipped ? `${plural(skipped, "edited frame")} no longer in the game were skipped. ` : "") +
+          (failed.length ? failed.join(" ") + " " : "") +
+          (done.length ? "Test it in Training mode, and use Restore original when you want the stock look back." : ""),
+          failed.length ? "bad" : "ok", true);
   await refreshAll();
 }
 
 async function restoreOriginal() {
-  if (!await ask(`Copy the original ${state.char}.pak back into the game folder?\n\nClose the game first.`, "Restore original", true)) return;
+  try { await Promise.all([loadCharacters(), refreshStatus()]); } catch (e) { showMsg(e.message, "bad"); return; }
+  const s = state.status || {};
+  const here = s.backup_ok && s.game_pak !== "original" && s.game_pak !== "changed";
+  const cands = currentFirst(state.chars.filter((c) => c.installed || (here && c.name === state.char)));
+  if (!cands.length) { showMsg("Every character already has its original file in the game folder."); updateGameButtons(); return; }
+  const hasCurrent = cands.some((c) => c.name === state.char);
+  const picked = await pickChars({
+    title: "Restore original",
+    lead: (cands.length > 1
+      ? "Tick the characters to put back. Each ticked character's original file is copied into the game folder and checked against the backup; the others keep your mod."
+      : "This character's original file is copied back into the game folder and checked against the backup.") +
+      "\n\nYour edits stay in the project. Close the game first.",
+    rows: cands.map((c) => ({ name: c.name, detail: c.installed ? "your mod is in the game folder" : "not the original file",
+                              checked: hasCurrent ? c.name === state.char : true })),
+    danger: true,
+    okLabel: (n) => n > 1 ? `Restore ${n} characters` : "Restore original",
+  });
+  if (!picked) return;
   $("restoreBtn").disabled = true;
-  showMsg("Restoring the original pak…");
-  try {
-    const r = await api("/api/restore", {});
-    showMsg(`Original ${state.char}.pak restored and verified (${r.hash.slice(0, 12)}…).`, "ok");
-  } catch (e) {
-    showMsg(e.message, "bad");
+  const done = [], failed = [];
+  for (const [i, name] of picked.entries()) {
+    showMsg(`Restoring ${charLabel(name)}${picked.length > 1 ? ` (${i + 1} of ${picked.length})` : ""}…`);
+    try {
+      await api("/api/restore", { char: name });
+      done.push(charLabel(name));
+    } catch (e) {
+      failed.push(`${charLabel(name)} was not restored: ${e.message}`);
+    }
   }
+  showMsg((done.length ? `Original restored and verified for ${listed(done)}. ` : "") + failed.join(" "),
+          failed.length ? "bad" : "ok");
   await refreshAll();
 }
 
@@ -865,7 +1020,7 @@ async function replaceFiles(files) {
   close.onclick = () => { box.hidden = true; };
   head.append(title, el("span", "spacer"), close);
   box.append(head);
-  showMsg(`Fitting colours to ${state.char}'s palette… the very first file for a character can take about a minute.`);
+  showMsg(`Fitting colours to ${charLabel(state.char)}'s palette… the very first file for a character can take about a minute.`);
   let ok = 0;
   for (let i = 0; i < list.length; i++) {
     const file = list[i];
@@ -1015,7 +1170,7 @@ function showEdited() {
   $("empty").hidden = true;
   $("moveView").hidden = true;
   $("editedView").hidden = false;
-  $("editedTitle").textContent = `Edited files: ${state.char}`;
+  $("editedTitle").textContent = `Edited files: ${charLabel(state.char)}`;
   $("editedPath").textContent = `Your edited PNGs are kept in ${edited.folders.edits || ""}`;
   const grid = $("editedGrid");
   grid.textContent = "";
@@ -1139,7 +1294,7 @@ async function openMove(category, move, frameName) {
   $("moveView").hidden = false;
   const title = $("moveTitle");
   title.textContent = move;
-  title.append(el("small", null, `${state.char} · ${catLabel(category)}`));
+  title.append(el("small", null, `${charLabel(state.char)} · ${catLabel(category)}`));
   let groups;
   try {
     groups = await api(`/api/move?category=${encodeURIComponent(category)}&move=${encodeURIComponent(move)}`);
@@ -1158,15 +1313,24 @@ async function openMove(category, move, frameName) {
   const gsel = $("groupSel");
   gsel.textContent = "";
   let startGroup = -1;
-  groups.forEach((g, gi) => {
-    const shown = g.frames.filter((f) => !f.mask);
-    const opt = el("option", null, `${g.name || "(none)"} (${shown.length})`);
-    opt.value = gi;
-    gsel.append(opt);
-    if (frameName && g.frames.some((f) => f.name === frameName)) startGroup = gi;
-  });
+  // character parts first, then effects; the select's order is what Previous / Next step through
+  const isChar = (g) => g.frames.some((f) => f.type === 3);
+  const kinds = [["Character", groups.filter(isChar)], ["Effects", groups.filter((g) => !isChar(g))]].filter((k) => k[1].length);
+  for (const [label, list] of kinds) {
+    const box = kinds.length > 1 ? el("optgroup") : gsel;
+    if (kinds.length > 1) { box.label = `${label} (${list.length})`; gsel.append(box); }
+    for (const g of list) {
+      const gi = groups.indexOf(g);
+      const shown = g.frames.filter((f) => !f.mask);
+      const opt = el("option", null, `${g.name || "(none)"} (${shown.length})`);
+      opt.value = gi;
+      box.append(opt);
+      if (frameName && g.frames.some((f) => f.name === frameName)) startGroup = gi;
+    }
+  }
   if (startGroup < 0) startGroup = Math.max(0, groups.findIndex((g) => g.name.split("~").includes("frames")));
   gsel.value = startGroup;
+  $("partCtl").hidden = groups.length < 2;
   loadGroup(startGroup, frameName);
   loadMoveRows();
 }
@@ -1183,6 +1347,10 @@ async function reloadMove() {
 function loadGroup(gi, startName) {
   stop();
   player.gi = gi;
+  const gs = $("groupSel"), more = gs.options.length - 1;
+  $("partMore").textContent = `Part ${gs.selectedIndex + 1} of ${gs.options.length} · ${plural(more, "other")} hidden`;
+  $("partPrev").disabled = gs.selectedIndex <= 0;
+  $("partNext").disabled = gs.selectedIndex >= more;
   const frames = player.groups[gi].frames.filter((f) => !f.mask && !f.error);
   player.frames = frames;
   player.index = Math.max(0, frames.findIndex((f) => f.name === startName));
@@ -2337,6 +2505,15 @@ $("palReset").onclick = resetPalette;
 $("filter").oninput = applyFilter;
 $("playBtn").onclick = () => (player.timer ? stop() : play());
 $("groupSel").onchange = () => { sel.strip.clear(); loadGroup(Number($("groupSel").value)); };
+function stepPart(by) {
+  const s = $("groupSel"), to = s.selectedIndex + by;
+  if (to < 0 || to >= s.options.length) return;
+  s.selectedIndex = to;
+  s.onchange();
+}
+$("partPrev").onclick = () => stepPart(-1);
+$("partNext").onclick = () => stepPart(1);
+$("partMore").onclick = () => { const s = $("groupSel"); try { s.showPicker(); } catch (e) { s.focus(); } };
 $("fps").oninput = () => { $("fpsVal").textContent = $("fps").value; if (player.timer) play(); };
 $("revertSelBtn").onclick = () => revertNames(player.frames.filter((f) => f.edit && sel.strip.has(f.name)).map((f) => f.name));
 $("revertMoveBtn").onclick = () => {

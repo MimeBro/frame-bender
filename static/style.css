@@ -72,10 +72,6 @@ input::placeholder, textarea::placeholder { color: var(--mute); }
 #topbar { height: var(--top); flex: none; display: flex; align-items: center; gap: 12px; padding: 0 12px;
   background: var(--panel); border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 8px; margin-right: 4px; flex: none; white-space: nowrap; }
-.mark { display: grid; grid-template-columns: 7px 7px; gap: 2px; }
-.mark i { width: 7px; height: 7px; border-radius: 1px; }
-.mark .air { background: var(--air); } .mark .water { background: var(--water); }
-.mark .earth { background: var(--earth); } .mark .fire { background: var(--fire); }
 .word { font-weight: 700; font-size: 15px; letter-spacing: .01em; }
 .group { display: flex; align-items: center; gap: 6px; padding-left: 12px; border-left: 1px solid var(--line); }
 .glabel { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--mute); margin-right: 2px; }
@@ -199,7 +195,14 @@ details.has-edits > summary { color: var(--air-text); }
 #stagebar h1 small { font-size: 13px; font-weight: 400; color: var(--text2); margin-left: 8px; }
 #playBtn { min-width: 76px; }
 .speed input { width: 72px; }
-#groupSel { max-width: 150px; }
+#groupSel { max-width: 190px; }
+.parts { gap: 4px; }
+.parts > .ctl { margin-right: 2px; }
+.ico.flip { transform: rotate(90deg); }
+#partNext .ico { transform: rotate(-90deg); }
+.partmore { height: 22px; padding: 0 9px; margin-left: 4px; border: 1px solid var(--water); border-radius: 11px;
+  background: var(--water-bg); color: var(--water-text); font: 600 12px/1 var(--f); white-space: nowrap; cursor: pointer; }
+.partmore:hover { border-color: var(--water-hover); }
 #backdropSel { max-width: 170px; }
 #stageArea { position: relative; flex: 1; min-height: 160px; overflow: hidden; background: var(--stage-void); }
 #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
@@ -325,6 +328,21 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 dialog h2 { font-size: 16px; margin-bottom: 8px; }
 dialog .row { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
 #askDlg { width: min(460px, 92vw); }
+.picklead { color: var(--text2); white-space: pre-line; }
+.pickhead { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; }
+.picklist { display: flex; flex-direction: column; gap: 2px; max-height: 38vh; overflow-y: auto; margin: 6px 0 10px;
+  padding: 4px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel2); }
+.picklist:empty { display: none; }
+.pickrow { display: flex; align-items: baseline; gap: 8px; padding: 5px 8px; border-radius: var(--r); cursor: pointer; }
+.pickrow:hover { background: var(--raise); }
+.pickrow input { align-self: center; flex: none; }
+.pickrow b { font-weight: 600; white-space: nowrap; }
+.pickrow small { color: var(--text2); font-size: 12px; }
+.pickrow .tag { margin-left: auto; font-size: 11px; color: var(--air); white-space: nowrap; }
+.pickrow.off { cursor: default; }
+.pickrow.off b { color: var(--mute); }
+.pickrow.off small { color: var(--fire-text); }
+#pickCheckWrap { display: flex; margin-top: 12px; }
 #askText { white-space: pre-line; color: var(--text2); }
 #askCheckWrap { display: flex; margin-top: 12px; }
 #shareResult { margin-top: 10px; overflow-wrap: anywhere; }

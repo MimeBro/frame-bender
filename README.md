@@ -55,7 +55,9 @@ game with one click. One more click puts the original back.
   Optional extra canvas space for hair, hats and wigs. Effects (fire, wind, …) keep full colour.
 - **Skin packs**: share a small zip with only your edits; import one with a preview of what it will change.
   See [docs/skin-pack-format.md](docs/skin-pack-format.md).
-- **Build & install / Restore original**: one button each. The status card at the top shows whether the game has the original or your mod.
+- **Build & install / Restore original**: one button each. Both list every character you edited with a tick box, so you can
+  install or put back one character or all of them together. The status card at the top shows whether the game has the
+  original or your mod for the character you are looking at.
 - **Scan game**: finds new characters and notices when a game update changed a file.
 
 ## Quick start
@@ -156,7 +158,8 @@ Every part of a character uses a **palette row**: skin is one row, the robe anot
 
 ### 3. Share or import a skin
 
-- **Share**: click **Share**, give the skin a name, and send the zip it creates. Share the zip, never a `.pak`.
+- **Share**: click **Share**, give the skin a name, and send the zip it creates. If you edited several characters, tick the
+  ones to share: each gets its own zip. Share the zip, never a `.pak`.
 - **Import**: click **Import** or drop the zip on the window. You see what it would change before anything
   happens, and your own edits are kept unless you tick the box to replace them. Only import packs from people you
   trust.

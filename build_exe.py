@@ -48,6 +48,7 @@ def main():
     args = [
         "--noconfirm", "--clean", "--windowed",
         "--name", NAME,
+        "--icon", str(HERE / "assets" / "icon.ico"),          # the cabbage: exe, taskbar and window icon
         "--distpath", str(HERE / "dist"),
         "--workpath", str(HERE / "build" / "pyinstaller"),
         "--specpath", str(HERE / "build" / "pyinstaller"),

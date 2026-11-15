@@ -88,7 +88,7 @@ class SetupServer:
             def _send(self, code, body, kind="application/json"):
                 data = body if isinstance(body, bytes) else json.dumps(body).encode("utf-8")
                 self.send_response(code)
-                self.send_header("Content-Type", kind + ("; charset=utf-8" if kind != "application/json" else ""))
+                self.send_header("Content-Type", kind + ("; charset=utf-8" if kind.startswith("text/") else ""))
                 self.send_header("Content-Length", str(len(data)))
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
@@ -106,6 +106,9 @@ class SetupServer:
                 if self.path == "/style.css":            # the editor's own look
                     sheet = (paths.APP_DIR / "static" / "style.css").read_bytes()
                     return self._send(200, sheet, "text/css")
+                if self.path in ("/favicon.ico", "/icon.png"):   # the app icon for the tab
+                    icon = (paths.APP_DIR / "static" / self.path[1:]).read_bytes()
+                    return self._send(200, icon, "image/png" if self.path.endswith(".png") else "image/x-icon")
                 if self.path == "/api/setup-status":
                     return self._send(200, outer.status())
                 self._send(404, {"error": "not found"})

@@ -395,7 +395,8 @@ def skin_export():
     result = skinpack.create(_project(), _ws(), body.get("name"), body.get("author", ""),
                              body.get("description", ""), frames=bool(body.get("frames", True)),
                              palettes=bool(body.get("palettes", True)))
-    _reveal(result["path"])
+    if body.get("reveal", True):
+        _reveal(result["path"])
     return jsonify(result)
 
 

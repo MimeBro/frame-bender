@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Frame Bender</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="icon.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,7 +28,6 @@
 
 <header id="topbar">
   <div class="brand" aria-label="Frame Bender">
-    <span class="mark" aria-hidden="true"><i class="air"></i><i class="water"></i><i class="earth"></i><i class="fire"></i></span>
     <span class="word">Frame Bender</span>
   </div>
   <div class="charpick" id="charPick" hidden>
@@ -60,8 +61,8 @@
         <button id="rebuildBtn" role="menuitem">Test rebuild<small>Rebuild with no edits and compare with the original</small></button>
       </div>
     </div>
-    <button id="restoreBtn" class="tb">Restore original</button>
-    <button id="installBtn" class="tb danger" title="Build this character's pak with your edits and copy it into the game folder">Build &amp; install</button>
+    <button id="restoreBtn" class="tb">Restore original…</button>
+    <button id="installBtn" class="tb danger">Build &amp; install…</button>
   </div>
 </header>
 
@@ -125,7 +126,12 @@
     <div id="moveView" hidden>
       <div id="stagebar">
         <h1 id="moveTitle"></h1>
-        <label class="ctl">Part <select id="groupSel"></select></label>
+        <div class="ctl parts" id="partCtl" hidden>
+          <label class="ctl">Part <select id="groupSel"></select></label>
+          <button id="partPrev" class="tb icononly" aria-label="Previous part" title="Previous part"><svg class="ico flip"><use href="#i-chev"/></svg></button>
+          <button id="partNext" class="tb icononly" aria-label="Next part" title="Next part"><svg class="ico"><use href="#i-chev"/></svg></button>
+          <button id="partMore" class="partmore" title="This move is made of several parts and only one is shown at a time. Click to pick another."></button>
+        </div>
         <label class="ctl">Backdrop <select id="backdropSel"></select></label>
         <div class="seg" role="group" aria-label="Zoom">
           <button data-zoom="stage" aria-pressed="false" title="Show the whole stage">Stage</button><button data-zoom="fit" aria-pressed="true" title="Fit the character to the window (0, or double-click the stage)">Fit</button><span class="segline" aria-hidden="true"></span><button id="zoomOut" class="zstep" title="Zoom out (-)" aria-label="Zoom out"><svg class="ico"><use href="#i-minus"/></svg></button><button id="zoomVal" class="zval" title="Zoom level: click for actual size (100%). Scroll on the stage to zoom, drag to move around." aria-label="Zoom level, click for 100%">100%</button><button id="zoomIn" class="zstep" title="Zoom in (=)" aria-label="Zoom in"><svg class="ico"><use href="#i-plus"/></svg></button>
@@ -267,6 +273,7 @@
 <dialog id="shareDlg">
   <h2>Share skin</h2>
   <p id="shareSummary" class="muted"></p>
+  <div id="shareChars" class="picklist" role="group" aria-label="Characters to share"></div>
   <label class="field">Name <input id="shareName" type="text" maxlength="80"></label>
   <label class="field">Author <input id="shareAuthor" type="text" maxlength="80" placeholder="your name or handle (optional)"></label>
   <label class="field">Description <textarea id="shareDesc" rows="3" maxlength="2000"></textarea></label>
@@ -291,6 +298,16 @@
     <span class="spacer"></span>
     <button id="scanClose" class="tb">Close</button>
   </div>
+</dialog>
+
+<dialog id="pickDlg">
+  <h2 id="pickTitle"></h2>
+  <p id="pickLead" class="picklead"></p>
+  <div class="pickhead"><span id="pickCount" class="muted"></span><span class="spacer"></span><button id="pickAll" class="tb">Tick all</button></div>
+  <div id="pickList" class="picklist" role="group" aria-labelledby="pickTitle"></div>
+  <p id="pickNote" class="picklead"></p>
+  <label id="pickCheckWrap" class="chk" hidden><input id="pickCheck" type="checkbox"> <span id="pickCheckText"></span></label>
+  <div class="row"><span class="spacer"></span><button id="pickCancel" class="tb">Cancel</button><button id="pickOk" class="tb danger"></button></div>
 </dialog>
 
 <dialog id="askDlg">
