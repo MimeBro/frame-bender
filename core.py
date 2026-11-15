@@ -903,6 +903,22 @@ _workspaces = {}
 _ws_lock = threading.Lock()
 
 
+_row_names = None
+
+
+def row_names(char):
+    """{row number as text: what that palette row colours}, from row_names.json (hand-written hints)."""
+    global _row_names
+    if _row_names is None:
+        try:
+            data = json.loads((APP_DIR / "row_names.json").read_text(encoding="utf-8"))
+            _row_names = data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            _row_names = {}
+    names = _row_names.get(char)
+    return {str(k): str(v)[:40] for k, v in names.items()} if isinstance(names, dict) else {}
+
+
 def workspace(char):
     with _ws_lock:
         ws = _workspaces.get(char)

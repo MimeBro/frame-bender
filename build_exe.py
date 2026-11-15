@@ -54,6 +54,7 @@ def main():
         "--specpath", str(HERE / "build" / "pyinstaller"),
         "--add-data", f"{HERE / 'static'};static",
         "--add-data", f"{HERE / 'rows_known.json'};.",      # palette rows per character (make_rows_known.py)
+        "--add-data", f"{HERE / 'row_names.json'};.",       # what each palette row colours (hand-written)
         "--paths", str(HERE),
     ]
     for module in TOOLS_STDLIB:

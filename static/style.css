@@ -275,10 +275,13 @@ details.has-edits > summary { color: var(--air-text); }
 #palHint { margin-top: 8px; font-size: 12px; }
 #palTools { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 8px; flex-wrap: wrap; }
 .paltb { display: inline-flex; gap: 4px; }
-.prow { display: grid; grid-template-columns: 34px repeat(3, 1fr) 22px; gap: 4px; align-items: center; margin-bottom: 4px; }
+.prow { display: grid; grid-template-columns: 22px minmax(0, 1fr) repeat(3, 38px) 22px; gap: 4px; align-items: center; margin-bottom: 4px; }
+.prow .what { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prow.used .what { color: var(--text); }
+.prow.lit .what { color: var(--water-text); }
 .prow .num { color: var(--mute); font-size: 12px; text-align: right; padding-right: 6px; }
 .prow.used .num { color: var(--text); font-weight: 600; }
-.prow.head span { font-size: 11px; color: var(--mute); text-align: center; }
+.prow.head span { font-size: 10px; color: var(--mute); text-align: center; }
 .prow.head .num { text-align: right; }
 .prow.lit { background: var(--water-bg); border-radius: 3px; box-shadow: 0 0 0 2px var(--water-bg); }
 .prow.lit .num { color: var(--water-text); }

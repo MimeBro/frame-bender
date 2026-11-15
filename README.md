@@ -120,9 +120,10 @@ them. If you cloned without it, run `git submodule update --init`.
 ### 1. Recolour a costume (about two minutes)
 
 1. Pick a character and a move (Idle → stand is a good one).
-2. In the **Palette** panel on the right, choose a **costume slot**. Pick a spare one rather than the default
-   costume, so the default look stays as it is.
-3. Point at the rows: the stage darkens everything except the parts that row colours. Find the row you want.
+2. The **Palette** panel on the right opens on the character's first costume slot. Choose another **costume
+   slot** there: pick a spare one rather than the default costume, so the default look stays as it is.
+3. Most rows have a label saying what they colour (Skin, Hair, Pants…). Point at a row and the stage darkens
+   everything except the parts that row colours. Labels are a guide; the highlight on the stage is exact.
 4. Click the **base** swatch. Drag in the colour square; the stage follows. Click **Set shadow and light from
    base** so the shading matches. **Done** keeps it, **Cancel** (or Esc) puts it back. Ctrl+Z undoes a change.
 5. Close the game if it is running, then click **Build & install**.

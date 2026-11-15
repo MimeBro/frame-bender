@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 
 const state = { char: "", chars: [], gen: 0, status: null };      // gen bumps on every character switch
 const player = { groups: [], gi: 0, frames: [], images: [], box: null, index: 0, timer: null };
-const pal = { slot: "", rows: null, original: null, used: [], rev: 0, hover: null, try: "" };   // try: colours being previewed, not saved yet
+const pal = { slot: "", rows: null, original: null, used: [], rev: 0, hover: null, try: "", names: {}, first: "" };   // try: colours being previewed, not saved yet
 const rowmaps = new Map();   // row-map URL -> { data: ImageData } once loaded, or "loading"
 let highlightCache = null;   // last overlay drawn: { key, canvas, count }
 const view = { stages: [], backdrop: "checker", stageImg: null, stageMeta: null, anchor: null,
@@ -202,6 +202,8 @@ async function selectChar(name) {
   stop();
   current = null;
   pal.slot = ""; pal.rows = pal.original = null; pal.used = [];
+  player.groups = []; player.frames = []; player.images = [];   // the old character's frames are gone
+  $("strip").textContent = "";
   sel.strip.clear(); sel.edited.clear();
   closeSwatchEditor();
   $("charName").textContent = charLabel(name);
@@ -238,6 +240,11 @@ async function selectChar(name) {
     const [tree] = await Promise.all([api("/api/moves"), loadPaletteList(), loadEdited(), loadStages()]);
     if (gen !== state.gen) return;
     buildTree(tree);
+    if (pal.first) {                       // open on the first costume, ready to recolour
+      $("palSel").value = pal.first;
+      await selectPalette(pal.first);
+      if (gen !== state.gen) return;
+    }
     const first = moveButtons.get("idle/stand") || moveButtons.get(store.get("skin-editor-move-" + name) || "");
     if (first) await first.open(); else $("empty").textContent = "Pick a move on the left.";
   } catch (e) {
@@ -1771,7 +1778,7 @@ function showRowNote(h, count) {
     note.classList.remove("on");
     return;
   }
-  const what = `Row ${h.row}` + (h.col == null ? "" : ` · ${SHADES[h.col]}`);
+  const what = `Row ${h.row}` + (pal.names[h.row] ? ` (${pal.names[h.row]})` : "") + (h.col == null ? "" : ` · ${SHADES[h.col]}`);
   note.classList.add("on");
   note.textContent = count == null ? `${what}: finding it…`
     : count ? `${what}: the parts not darkened (${count.toLocaleString()} px in this frame).`
@@ -1845,6 +1852,8 @@ async function loadPaletteList() {
   const asked = state.char;
   const data = await api("/api/palettes");
   if (asked !== state.char) return;
+  pal.names = data.row_names || {};      // row number -> what it colours ("Skin", "Hair", ...)
+  pal.first = data.default || "";        // the costume slot a character opens on
   const s = $("palSel");
   const keep = pal.slot;
   s.textContent = "";
@@ -1907,7 +1916,7 @@ function renderPalette() {
   if (!activeRow()) showRowNote(null);
   const onlyUsed = $("palOnlyUsed").checked && pal.used.length;
   const head = el("div", "prow head");
-  head.append(el("span", "num", "row"), ...SHADES.map((s) => el("span", null, s)), el("span"));
+  head.append(el("span", "num", "row"), el("span", "what"), ...SHADES.map((s) => el("span", null, s)), el("span"));
   grid.append(head);
   let prev = -1;
   pal.rows.forEach((cols, row) => {
@@ -1918,13 +1927,17 @@ function renderPalette() {
     prev = row;
     line.dataset.row = row;
     line.onmouseenter = () => setRowHover(row, null);
+    const name = pal.names[row] || "";
     line.append(el("span", "num", String(row)));
+    const what = el("span", "what", name);
+    if (name) what.title = name;
+    line.append(what);
     cols.forEach((color, col) => {
       const sw = el("button", "sw");
       sw.dataset.cell = row + "." + col;
       sw.style.background = hex(color);
-      sw.setAttribute("aria-label", `Row ${row} ${SHADES[col]} ${hex(color)}`);
-      sw.title = `row ${row} · ${SHADES[col]} · ${hex(color)}`;
+      sw.setAttribute("aria-label", `Row ${row}${name ? " " + name : ""} ${SHADES[col]} ${hex(color)}`);
+      sw.title = `row ${row}${name ? " · " + name : ""} · ${SHADES[col]} · ${hex(color)}`;
       if (!sameColor(color, pal.original[row][col])) sw.classList.add("changed");
       if (ed && ed.row === row && ed.col === col) sw.classList.add("editing");
       sw.onclick = () => (picking ? pickColor(pal.rows[row][col]) : openSwatchEditor(row, col));

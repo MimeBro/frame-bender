@@ -438,6 +438,7 @@ def palettes():
     ws, changed = _ws(), _project().palette_edits()
     return jsonify({
         "default": ws.default_palette["name"] if ws.default_palette else None,
+        "row_names": core.row_names(ws.char),
         "palettes": [{"name": name, "colors": len(changed.get(name, {})),
                       "locked": record["access"] or ""}
                      for name, record in ws.costume.items()],
