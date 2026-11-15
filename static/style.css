@@ -318,6 +318,7 @@ details.has-edits > summary { color: var(--air-text); }
 #exportDlg .fn { font: 12px Consolas, monospace; overflow-wrap: anywhere; color: var(--text2); }
 #exportDlg .row.tight { margin-top: 8px; }
 #exportDlg .chk { display: flex; margin-top: 10px; }
+.expnote { margin: 2px 0 8px 22px; max-width: 270px; font-size: 12px; line-height: 1.4; color: var(--air-text); white-space: normal; }
 #expErr:empty { display: none; }
 #expErr { margin-top: 8px; }
 
@@ -389,7 +390,7 @@ dialog .row { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
 .splitbtn > .tb:first-child { border-radius: var(--r) 0 0 var(--r); }
 .splitbtn > .tb.icononly { border-radius: 0; border-left: 0; width: 26px; }
 .splitbtn > .tb.icononly:last-of-type { border-radius: 0 var(--r) var(--r) 0; }
-.popover.up { bottom: 34px; right: 0; width: 250px; display: flex; flex-direction: column; gap: 8px; }
+.popover.up { bottom: 34px; right: 0; width: 290px; display: flex; flex-direction: column; gap: 8px; }
 .popover.up .field { margin: 0; }
 
 .tb .short { display: none; }

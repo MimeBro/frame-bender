@@ -156,9 +156,10 @@
             <button id="exportBtn" class="tb" title="Write this move's frames as PNGs and open the folder">Export move</button><button id="exportHelpBtn" class="tb icononly" aria-label="Painting rules and export folder" title="Painting rules and export folder"><svg class="ico"><use href="#i-help"/></svg></button><button id="exportOptsBtn" class="tb icononly" aria-haspopup="true" aria-expanded="false" aria-label="Export options" title="Export options"><svg class="ico"><use href="#i-chev"/></svg></button>
             <div id="exportPop" class="popover up" hidden>
               <label id="expEffectsWrap" class="chk"><input id="expEffects" type="checkbox"> <span id="expEffectsText">Include effects</span></label>
+              <p id="expEffectsNote" class="expnote">Effect PNGs must keep the exact size (width × height) they are exported at. A resized or re-cropped effect is rejected.</p>
               <label id="expMasksWrap" class="chk" title="Advanced: a mask is the cut-out shape of an effect. It keeps its data in the colour channels, so the PNG can look empty."><input id="expMasks" type="checkbox"> <span id="expMasksText">Include masks (advanced)</span></label>
-              <label class="field" title="As it is: each PNG is just the frame. Full screen: each PNG is the game's whole 3840×2160 screen with the frame at its real spot, so you can draw anywhere around it (hair, hats, wings).">Frame size
-                <select id="expSpace"><option value="0">As it is</option><option value="full">Full screen (3840×2160)</option></select></label>
+              <label class="field" title="Cropped: each PNG is just the frame's own rectangle. Full screen: each PNG is the game's whole 3840×2160 screen with the frame at its real spot, so you can draw anywhere around it (hair, hats, wings). Effects are always cropped.">Frame size
+                <select id="expSpace"><option value="0">Cropped</option><option value="full">Full screen (3840×2160)</option></select></label>
               <label id="expColoursWrap" class="chk" title="Draw the exported frames with the colours of the costume slot picked in the Palette panel, your colour edits included. Without it they use the default costume."><input id="expColours" type="checkbox"> <span id="expColoursText">Use my current colours</span></label>
             </div>
           </div>
@@ -255,6 +256,9 @@
     <li><strong>Want two colours in one place?</strong> Paint it with colours from two different rows.</li>
     <li>Parts you don't touch stay exactly as the game made them. Effects (fire, wind) are full colour and have
         no palette limit.</li>
+    <li><strong>Effects must keep their size.</strong> An effect PNG only works at the exact width and height it
+        was exported with; a resized or re-cropped one is rejected. Only character frames can get more room
+        (Frame size: Full screen).</li>
   </ol>
   <label class="chk"><input id="expPalette" type="checkbox" checked> Also export the palette as a PNG to pick colours from</label>
   <h3>Export folder</h3>

@@ -139,8 +139,8 @@ them. If you cloned without it, run `git submodule update --init`.
 3. Drag the PNGs onto the Frame Bender window, as many as you like. You get a before / after for each.
 4. **Build & install**, test in Training mode, then **Restore original**.
 
-Need room for a hat or bigger hair? Click the small arrow next to Export move and set **Frame size** to
-**Full screen**: every PNG becomes the game's whole 3840×2160 screen with the frame at its real spot, so you can
+Need room for a hat or bigger hair? Click the small arrow next to Export move and change **Frame size** from
+**Cropped** to **Full screen**: every PNG becomes the game's whole 3840×2160 screen with the frame at its real spot, so you can
 draw anywhere around it. Tick **Use my current colours** there to get the frames drawn with the costume slot
 you are editing in the Palette panel (your colour changes included) instead of the default costume.
 
@@ -154,7 +154,8 @@ Every part of a character uses a **palette row**: skin is one row, the robe anot
 - Once the PNG is **back in Frame Bender**, you can turn any row into any colour you like in the Palette panel.
   Everything painted with that row changes together.
 - Want two colours in one place? Paint it with colours from two different rows.
-- Parts you do not touch stay exactly as the game made them. Effects are full colour and have no palette limit.
+- Parts you do not touch stay exactly as the game made them. Effects are full colour and have no palette limit,
+  but an effect PNG must keep the exact size it was exported with: a resized or re-cropped one is rejected.
 
 ### 3. Share or import a skin
 
@@ -179,7 +180,7 @@ Every part of a character uses a **palette row**: skin is one row, the robe anot
 | Install or Restore says the file is in use | the game is running | close the game, then try again |
 | Install or Restore refuses: the game file is not the backup or your mod | a game update changed the file | **Scan game folder… → Update backup** (in the "…" menu), then install again |
 | "No verified backup" | that character was never backed up, or the backup changed | verify the game files in Steam, then **Scan game folder… → Back up** |
-| A dropped PNG is rejected for its size | the canvas size changed | export again and keep the size, or use a *Full screen* export |
+| A dropped PNG is rejected for its size | the canvas size changed | export again and keep the size, or use a *Full screen* export (character frames only; effects always keep their exported size) |
 | A dropped PNG names another character | the file belongs to another character | switch to the character the message names |
 | Many "far from the palette" pixels | you painted with colours the costume cannot show | pick colours from the exported palette image |
 | The mod is gone after a game update | updates replace the game's files | **Scan game folder…**, update the backup, **Build & install** again |

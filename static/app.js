@@ -1306,7 +1306,7 @@ async function openMove(category, move, frameName) {
   player.groups = groups;
   const all = groups.flatMap((g) => g.frames);          // export options: only what this move has
   const fx = all.filter((f) => f.type === 6 && !f.mask).length, masks = all.filter((f) => f.mask).length;
-  $("expEffectsWrap").hidden = !fx;
+  $("expEffectsWrap").hidden = $("expEffectsNote").hidden = !fx;
   $("expMasksWrap").hidden = !masks;
   $("expEffectsText").textContent = `Include effects (${plural(fx, "image")})`;
   $("expMasksText").textContent = `Include effect masks (${plural(masks, "image")}, advanced)`;
