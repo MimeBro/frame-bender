@@ -3,8 +3,8 @@
 Everything beyond the quick start in the [README](../README.md).
 
 - [Recolour a costume](#recolour-a-costume)
-- [Repaint frames](#repaint-frames)
 - [How colours work](#how-colours-work)
+- [Repaint frames](#repaint-frames)
 - [Painting tips](#painting-tips)
 - [Share or import a skin](#share-or-import-a-skin)
 - [Possible errors](#possible-errors)
@@ -32,49 +32,81 @@ About two minutes.
 6. Start the game, go to Training mode, and choose that costume colour at character select.
 7. When you are finished, click **Restore original**.
 
-## Repaint frames
-
-1. Open the move and click **Export move**. Read the short rules it shows, and leave *Also export the palette as
-   a PNG* ticked. A folder with the PNGs opens.
-2. Paint over the PNGs. Keep the **file names** and the **canvas size**. Pick your colours from the
-   `palette_….png` image: character frames can only use the costume's colours, and anything else is moved to
-   the nearest allowed colour.
-3. Drag the PNGs onto the Frame Bender window, as many as you like. You get a before / after for each.
-4. **Build & install**, test in Training mode, then **Restore original**.
-
-Need room for a hat or bigger hair? Click the small arrow next to Export move and change **Frame size** from
-**Cropped** to **Full screen**: every PNG becomes the game's whole 3840×2160 screen with the frame at its real
-spot, so you can draw anywhere around it. Tick **Use my current colours** there to get the frames drawn with the
-costume slot you are editing in the Palette panel (your colour changes included) instead of the default costume.
-
 ## How colours work
 
-Every part of a character uses a **palette row**: skin is one row, the robe another. Each row holds three colours
-(shadow, base, light).
+Read this once before you repaint anything. It is the part that trips most people up.
 
-- When you **paint a PNG** in another program, take your colours from the exported `palette_….png`, which shows
-  every colour the game can use. A colour that is not in it is swapped for the closest one that is.
-- Once the PNG is **back in Frame Bender**, you can turn any row into any colour you like in the Palette panel.
-  Everything painted with that row changes together.
-- Want two colours in one place? Paint it with colours from two different rows.
-- Want a new part (a shield, a hat) to have its own colour? Paint it with a row the character barely uses, then
-  recolour that row. Point at a row first to see what else it colours.
-- Parts you do not touch stay exactly as the game made them. Effects are full colour and have no palette limit,
-  but an effect PNG must keep the exact size it was exported with: a resized or re-cropped one is rejected.
+<!-- IMAGE: the Palette panel next to the character, pointing at one row so only that part stays lit on the stage. -->
+
+**Each character has a palette: a numbered list of rows.** Each row is one part of the character: skin, hair,
+shirt, boots and so on. A row has three shades of its colour: shadow, base and light.
+
+**A pixel belongs to a row, not to a colour.** The game does not store "this pixel is red". It stores "this
+pixel is the shirt, base shade". The colour comes from the palette. That is why changing one row recolours that
+part in every frame of every move at once.
+
+So there are two different jobs, done in two different places:
+
+| You want to change… | Do it in | How |
+|---|---|---|
+| **What colour** a part is | Frame Bender's Palette panel | Pick a row, change its colours. Any colour you like. |
+| **The shape** of something (a new hat, a longer sword, a scar) | Your art program | Paint it with a row's shades, then drop the PNG back. |
+
+<!-- IMAGE: a row being recoloured in the Palette panel, before / after on the stage. -->
+
+### Painting with rows
+
+When you export a move, Frame Bender also saves a `palette_….png` next to the frames. It shows every row with
+its three shades.
+
+<!-- IMAGE: the exported palette PNG, with one row's three shades marked. -->
+
+- **Pick your colours from that image** with the eyedropper. When you drop the PNG back, every pixel you painted
+  is matched to the closest shade in the palette, and that decides which row (which part) it belongs to.
+- **The palette image shows the default costume's colours.** That is on purpose: you are choosing *which row*,
+  not the final colour. Paint a hat with the hair row's shades, and the hat will always match the hair, in every
+  costume.
+- **To give a new part its own colour**, paint it with a row the character barely uses, then recolour that row
+  in Frame Bender. Point at the row first: the stage shows what else it colours.
+- **Two colours in one area** (a shield with a blue face and a silver rim) need two rows.
+- Colours that are not in the palette are moved to the closest one that is. The result after dropping shows how
+  many pixels were "far from the palette"; a high number means some colours did not come from the palette image.
+
+### Effects are different
+
+Fire, water, wind and other effects are normal full-colour images: paint them any colour, no palette. They must
+keep the exact size they were exported with, or they are rejected.
+
+## Repaint frames
+
+1. Open the move and click **Export move**. Leave *Also export the palette as a PNG* ticked. A folder with the
+   frames opens.
+2. Paint over the PNGs with colours from the palette image (see [How colours work](#how-colours-work)). Keep the
+   **file names** and the **canvas size** the same.
+3. Drag the PNGs onto the Frame Bender window, as many as you like at once. You get a before / after for each.
+4. **Build & install**, test in Training mode, then **Restore original** when you are done.
+
+<!-- GIF: export a move, paint in Photoshop, drag the PNGs back onto the window. -->
+
+**Need more room**, for a hat or bigger hair? Click the small arrow next to Export move and set **Frame size** to
+**Full screen**. Every PNG is then the whole game screen with the character at its real spot, so you can draw
+anywhere around them.
+
+**Want to see your new colours while painting?** Tick **Use my current colours** in the same menu. The frames are
+exported in the costume you are editing instead of the default one.
 
 ## Painting tips
 
-- **You only need to paint what you change.** Every pixel you leave as exported stays exactly as the game has it,
-  including the thin soft outline. Only repainted pixels are fitted to the palette.
-- Colours from the rows the frame already uses come back exactly. A colour borrowed from another row that is
-  almost the same as one of the frame's own is moved onto the frame's own row.
-- The outline's outer edge is soft (semi-transparent black). Draw new outlines with an anti-aliased brush; a hard
-  pencil edge stays hard in game.
-- Each replaced frame takes a couple of seconds.
-- Keep transparency transparent. Effect PNGs use plain (non-premultiplied) alpha.
-- Masks (`…_mask`) are the cut-out shapes of some effects. Only moves that have them offer *Include effect
-  masks*. They keep their data in the RGB channels even where alpha is 0, so they can look empty. Leave them
-  alone unless you know what you are doing.
+- **Only paint what you change.** Everything you leave untouched stays exactly as the game has it, outline
+  included.
+- **Use the eyedropper** on the palette image instead of picking colours by eye.
+- **Pick clearly different rows** for new parts. A colour very close to one the frame already uses is treated as
+  that one.
+- **Outlines are black with a soft edge.** Use a soft (anti-aliased) brush; a hard pencil edge stays hard in game.
+- **Keep transparent areas transparent.**
+- **Leave masks alone.** Some effects have `…_mask` files that look empty; only change them if you know what they
+  do.
+- Each frame takes a couple of seconds to process after you drop it.
 
 ## Share or import a skin
 
